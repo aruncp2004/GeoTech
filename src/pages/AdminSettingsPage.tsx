@@ -306,7 +306,8 @@ export default function AdminSettingsPage() {
                 </div>
                 <div className="mt-6">
                   <Button
-                    variant="secondary" className="font-bold"
+                    variant="secondary"
+                    className="font-bold"
                     onClick={handleProfileSave}
                     disabled={saving}
                   >
@@ -354,7 +355,8 @@ export default function AdminSettingsPage() {
                 </div>
                 <div className="mt-6">
                   <Button
-                    variant="secondary" className="font-bold"
+                    variant="secondary"
+                    className="font-bold"
                     onClick={handlePasswordChange}
                     disabled={saving}
                   >
@@ -438,7 +440,8 @@ export default function AdminSettingsPage() {
                 </div>
                 <div className="mt-6">
                   <Button
-                    variant="secondary" className="font-bold"
+                    variant="secondary"
+                    className="font-bold"
                     onClick={handleLabSave}
                   >
                     Save lab details
@@ -474,13 +477,16 @@ export default function AdminSettingsPage() {
                         </span>
                       </div>
                       <button
+                        type="button"
                         onClick={() => toggleCourier(courier.id)}
-                        className={`w-11 h-6 rounded-full transition-colors relative ${
+                        // The outer track
+                        className={`w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center ${
                           courier.enabled ? "bg-secondary" : "bg-muted"
                         }`}
                       >
+                        {/* The sliding circle (Thumb) */}
                         <span
-                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          className={`absolute w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
                             courier.enabled
                               ? "translate-x-5"
                               : "translate-x-0.5"
@@ -492,7 +498,8 @@ export default function AdminSettingsPage() {
                 </div>
                 <div className="mt-6">
                   <Button
-                    variant="secondary" className="font-bold"
+                    variant="secondary"
+                    className="font-bold"
                     onClick={handleCourierSave}
                   >
                     Save courier settings
@@ -547,20 +554,21 @@ export default function AdminSettingsPage() {
                         </p>
                       </div>
                       <button
+                        type="button" // Important: prevents accidental form submission
                         onClick={() =>
                           setNotifications((n) => ({
                             ...n,
                             [item.key]: !n[item.key as keyof typeof n],
                           }))
                         }
-                        className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+                        className={`w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center flex-shrink-0 ${
                           notifications[item.key as keyof typeof notifications]
                             ? "bg-secondary"
                             : "bg-muted"
                         }`}
                       >
                         <span
-                          className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          className={`absolute w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out ${
                             notifications[
                               item.key as keyof typeof notifications
                             ]
@@ -574,7 +582,8 @@ export default function AdminSettingsPage() {
                 </div>
                 <div className="mt-6">
                   <Button
-                    variant="secondary" className="font-bold"
+                    variant="secondary"
+                    className="font-bold"
                     onClick={handleNotificationSave}
                   >
                     Save notification settings
