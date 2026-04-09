@@ -89,26 +89,12 @@ export default function AdminSettingsPage() {
     fetchStats();
   }, []);
 
-  const fetchStats = async () => {
-    const { count } = await supabase
-      .from("samples")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "received");
-
-    const { data: oldest } = await supabase
-      .from("samples")
-      .select("received_at")
-      .eq("status", "received")
-      .order("received_at", { ascending: true })
-      .limit(1)
-      .single();
-
-    if (oldest?.received_at) {
-      const date = new Date(oldest.received_at);
-      const deleteDate = new Date(date);
-      deleteDate.setDate(deleteDate.getDate() + 30);
-    }
-  };
+ const fetchStats = async () => {
+  await supabase
+    .from("samples")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "received");
+};
 
   const handleProfileSave = async () => {
     setSaving(true);
