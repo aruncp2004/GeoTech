@@ -93,8 +93,8 @@ export default function AdminSettingsPage() {
   await supabase
     .from("samples")
     .select("*", { count: "exact", head: true })
-    .eq("status", "received");
-};
+    .eq("status", "received")
+}
 
   const handleProfileSave = async () => {
     setSaving(true);
