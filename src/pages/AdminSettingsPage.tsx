@@ -81,20 +81,18 @@ export default function AdminSettingsPage() {
   // Data retention
   const [retention] = useState({
     days: 30,
-    total_records: 0,
-    oldest_received: null as string | null,
   });
 
   useEffect(() => {
     fetchStats();
   }, []);
 
- const fetchStats = async () => {
-  await supabase
-    .from("samples")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "received")
-}
+  const fetchStats = async () => {
+    await supabase
+      .from("samples")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "received");
+  };
 
   const handleProfileSave = async () => {
     setSaving(true);
@@ -176,23 +174,18 @@ export default function AdminSettingsPage() {
     const confirmed = window.confirm(
       "This will permanently delete all received parcels older than 30 days. Are you sure?",
     );
-
     if (!confirmed) return;
-
     setSaving(true);
     try {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - retention.days);
-
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("samples")
-        .delete({ count: "exact" })
+        .delete()
         .eq("status", "received")
         .lt("received_at", cutoff.toISOString());
-
       if (error) throw error;
-
-      toast.success(`Deleted ${count || 0} old records`);
+      toast.success("Old records deleted successfully");
     } catch {
       toast.error("Cleanup failed");
     } finally {
