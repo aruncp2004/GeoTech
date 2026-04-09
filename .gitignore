@@ -12,11 +12,11 @@ dist
 dist-ssr
 *.local
 .next
-app
-components
-hooks
-lib
-types
+/app
+/components
+/hooks
+/lib
+/types
 next-env.d.ts
 next.config.mjs
 
