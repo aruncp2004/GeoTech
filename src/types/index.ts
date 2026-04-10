@@ -27,6 +27,10 @@ export interface Sample {
   customer_id: string;
   customer_name?: string;
   customer_company?: string;
+   profiles?: {
+    full_name: string
+    company: string
+  }
   sample_type: SampleType;
   test_required: string;
   project_name?: string;

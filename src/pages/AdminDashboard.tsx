@@ -1,45 +1,49 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useSamples } from '@/hooks/useSamples'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
-import StatusBadge from '@/components/StatusBadge'
-import { Input } from '@/components/ui/input'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useSamples } from "@/hooks/useSamples";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import StatusBadge from "@/components/StatusBadge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Search } from 'lucide-react'
-import type { SampleStatus } from '@/types'
+} from "@/components/ui/select";
+import { Search } from "lucide-react";
+import type { SampleStatus } from "@/types";
 
 export default function AdminDashboard() {
-  const { samples, isLoading } = useSamples()
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const { samples, isLoading } = useSamples();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filtered = samples.filter((s) => {
-    const matchSearch =
-      !search ||
-      s.sample_id.toLowerCase().includes(search.toLowerCase()) ||
-      s.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-      s.test_required?.toLowerCase().includes(search.toLowerCase()) ||
-      s.courier_name?.toLowerCase().includes(search.toLowerCase())
-    const matchStatus =
-      statusFilter === 'all' || s.status === statusFilter
-    return matchSearch && matchStatus
-  })
+  const supervisorName = s.profiles?.full_name || s.customer_name || ''
+  const matchSearch =
+    !search ||
+    s.sample_id.toLowerCase().includes(search.toLowerCase()) ||
+    supervisorName.toLowerCase().includes(search.toLowerCase()) ||
+    (s.test_required?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+    (s.courier_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+    (s.awb_number?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+    (s.project_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
+    (s.sample_type?.toLowerCase() ?? '').includes(search.toLowerCase())
+  const matchStatus =
+    statusFilter === 'all' || s.status === statusFilter
+  return matchSearch && matchStatus
+})
 
   const formatDate = (dateStr: string | undefined | null) => {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  }
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -49,16 +53,24 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-black text-primary">Admin Dashboard</h1>
+            <h1 className="text-2xl font-black text-primary">
+              Admin Dashboard
+            </h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               All parcels across all supervisors
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/admin/customers" className="text-sm font-semibold text-primary hover:underline">
+            <Link
+              to="/admin/customers"
+              className="text-sm font-semibold text-primary hover:underline"
+            >
               Manage supervisors →
             </Link>
-            <Link to="/admin/settings" className="text-sm font-semibold text-primary hover:underline">
+            <Link
+              to="/admin/settings"
+              className="text-sm font-semibold text-primary hover:underline"
+            >
               Settings →
             </Link>
           </div>
@@ -67,14 +79,37 @@ export default function AdminDashboard() {
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Total parcels', value: samples.length, color: 'bg-blue-50 text-primary' },
-            { label: 'Booked', value: samples.filter((s) => s.status === 'booked').length, color: 'bg-blue-50 text-blue-700' },
-            { label: 'In transit', value: samples.filter((s) => s.status === 'in_transit' || s.status === 'picked_up').length, color: 'bg-yellow-50 text-yellow-700' },
-            { label: 'Received', value: samples.filter((s) => s.status === 'received').length, color: 'bg-green-50 text-green-700' },
+            {
+              label: "Total parcels",
+              value: samples.length,
+              color: "bg-blue-50 text-primary",
+            },
+            {
+              label: "Booked",
+              value: samples.filter((s) => s.status === "booked").length,
+              color: "bg-blue-50 text-blue-700",
+            },
+            {
+              label: "In transit",
+              value: samples.filter(
+                (s) => s.status === "in_transit" || s.status === "picked_up",
+              ).length,
+              color: "bg-yellow-50 text-yellow-700",
+            },
+            {
+              label: "Received",
+              value: samples.filter((s) => s.status === "received").length,
+              color: "bg-green-50 text-green-700",
+            },
           ].map((card) => (
-            <div key={card.label} className={`${card.color} rounded-xl p-4 border`}>
+            <div
+              key={card.label}
+              className={`${card.color} rounded-xl p-4 border`}
+            >
               <div className="text-3xl font-black mb-1">{card.value}</div>
-              <div className="text-xs font-semibold uppercase tracking-wider opacity-70">{card.label}</div>
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-70">
+                {card.label}
+              </div>
             </div>
           ))}
         </div>
@@ -120,20 +155,41 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-4 font-bold text-primary">Sample ID</th>
-                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">Supervisor</th>
-                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Sample type</th>
-                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Test required</th>
-                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Courier</th>
-                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">AWB</th>
-                    <th className="text-left p-4 font-bold text-primary">Status</th>
-                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">Dispatch date</th>
-                    <th className="text-left p-4 font-bold text-primary hidden xl:table-cell">Received date</th>
+                    <th className="text-left p-4 font-bold text-primary">
+                      Sample ID
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">
+                      Supervisor
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
+                      Sample type
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
+                      Test required
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">
+                      Courier
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">
+                      AWB
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary">
+                      Status
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">
+                      Dispatch date
+                    </th>
+                    <th className="text-left p-4 font-bold text-primary hidden xl:table-cell">
+                      Received date
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((s) => (
-                    <tr key={s.id} className="border-b hover:bg-muted/30 transition-colors">
+                    <tr
+                      key={s.id}
+                      className="border-b hover:bg-muted/30 transition-colors"
+                    >
                       <td className="p-4">
                         <Link
                           to={`/admin/parcel/${s.id}`}
@@ -142,11 +198,21 @@ export default function AdminDashboard() {
                           {s.sample_id}
                         </Link>
                       </td>
-                      <td className="p-4 hidden sm:table-cell font-medium">{s.customer_name || '—'}</td>
-                      <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">{s.sample_type}</td>
-                      <td className="p-4 hidden md:table-cell text-muted-foreground">{s.test_required}</td>
-                      <td className="p-4 hidden lg:table-cell">{s.courier_name}</td>
-                      <td className="p-4 hidden lg:table-cell text-muted-foreground">{s.awb_number || '—'}</td>
+                      <td className="p-4 hidden sm:table-cell font-medium">
+                        {s.customer_name || "—"}
+                      </td>
+                      <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">
+                        {s.sample_type}
+                      </td>
+                      <td className="p-4 hidden md:table-cell text-muted-foreground">
+                        {s.test_required}
+                      </td>
+                      <td className="p-4 hidden lg:table-cell">
+                        {s.courier_name}
+                      </td>
+                      <td className="p-4 hidden lg:table-cell text-muted-foreground">
+                        {s.awb_number || "—"}
+                      </td>
                       <td className="p-4">
                         <StatusBadge status={s.status as SampleStatus} />
                       </td>
@@ -166,7 +232,10 @@ export default function AdminDashboard() {
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-12 text-center text-muted-foreground">
+                      <td
+                        colSpan={9}
+                        className="p-12 text-center text-muted-foreground"
+                      >
                         No parcels found.
                       </td>
                     </tr>
@@ -180,5 +249,5 @@ export default function AdminDashboard() {
 
       <Footer />
     </div>
-  )
+  );
 }
