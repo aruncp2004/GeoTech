@@ -11,11 +11,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { UserProfile } from '@/types'
 
+const DESIGNATIONS = [
+  'Junior Field Supervisor',
+  'Field Supervisor',
+  'Senior Field Supervisor',
+  'Site Supervisor',
+  'Geotechnical Supervisor',
+  'Project Supervisor',
+  'Lab Supervisor',
+  'Quality Control Supervisor',
+]
+
 export default function AdminCustomerListPage() {
   const [supervisors, setSupervisors] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [isCustomDesignation, setIsCustomDesignation] = useState(false)
   const canCreateSupervisors = Boolean(supabaseAdmin)
   const [form, setForm] = useState({
     full_name: '',
@@ -49,9 +61,7 @@ export default function AdminCustomerListPage() {
     e.preventDefault()
 
     if (!supabaseAdmin) {
-      toast.error(
-        'Supervisor creation is not configured. Add the service key or move this flow to a secure backend.'
-      )
+      toast.error('Supervisor creation is not configured.')
       return
     }
 
@@ -75,6 +85,7 @@ export default function AdminCustomerListPage() {
 
       toast.success(`Account created for ${form.full_name}`)
       setShowForm(false)
+      setIsCustomDesignation(false)
       setForm({
         full_name: '',
         company: 'Velciti Consulting Engineers',
@@ -136,18 +147,14 @@ export default function AdminCustomerListPage() {
             Field supervisors
           </h1>
           <Button
-            variant="secondary" className="font-bold"
+            className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
             onClick={() => setShowForm(!showForm)}
             disabled={!canCreateSupervisors}
           >
             {showForm ? (
-              <>
-                <X className="h-4 w-4 mr-1" /> Cancel
-              </>
+              <><X className="h-4 w-4 mr-1" /> Cancel</>
             ) : (
-              <>
-                <Plus className="h-4 w-4 mr-1" /> Add supervisor
-              </>
+              <><Plus className="h-4 w-4 mr-1" /> Add supervisor</>
             )}
           </Button>
         </div>
@@ -158,8 +165,7 @@ export default function AdminCustomerListPage() {
         {!canCreateSupervisors && (
           <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 mb-8 text-sm">
             Supervisor creation is disabled in this environment because the
-            service key is not configured. For production, move this flow to a
-            secure Edge Function or backend endpoint.
+            service key is not configured.
           </div>
         )}
 
@@ -175,32 +181,46 @@ export default function AdminCustomerListPage() {
                   id="full_name"
                   placeholder="Rajesh Kumar"
                   value={form.full_name}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      full_name: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
                   className="mt-1"
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="designation">Designation</Label>
-                <Input
+                <select
                   id="designation"
-                  placeholder="Field Supervisor"
-                  value={form.designation}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      designation: e.target.value,
-                    }))
-                  }
-                  className="mt-1"
-                  required
-                />
+                  value={isCustomDesignation ? 'custom' : form.designation}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setIsCustomDesignation(true)
+                      setForm((f) => ({ ...f, designation: '' }))
+                    } else {
+                      setIsCustomDesignation(false)
+                      setForm((f) => ({ ...f, designation: e.target.value }))
+                    }
+                  }}
+                  className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  required={!isCustomDesignation}
+                >
+                  <option value="">Select designation</option>
+                  {DESIGNATIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                  <option value="custom">Other (type manually)</option>
+                </select>
+                {isCustomDesignation && (
+                  <Input
+                    placeholder="Type designation manually"
+                    value={form.designation}
+                    onChange={(e) => setForm((f) => ({ ...f, designation: e.target.value }))}
+                    className="mt-2"
+                    required
+                  />
+                )}
               </div>
+
               <div>
                 <Label htmlFor="email">Email address</Label>
                 <Input
@@ -208,64 +228,48 @@ export default function AdminCustomerListPage() {
                   type="email"
                   placeholder="rajesh@velciti.com"
                   value={form.email}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      email: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="mt-1"
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="phone">Phone number</Label>
                 <Input
                   id="phone"
                   placeholder="9876543210"
                   value={form.phone}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      phone: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   className="mt-1"
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="address">Site / office address</Label>
                 <Input
                   id="address"
                   placeholder="Address"
                   value={form.address}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      address: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                   className="mt-1"
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="pincode">Pincode</Label>
                 <Input
                   id="pincode"
                   placeholder="600042"
                   value={form.pincode}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      pincode: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value }))}
                   className="mt-1"
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="password">Temporary password</Label>
                 <Input
@@ -273,20 +277,16 @@ export default function AdminCustomerListPage() {
                   type="password"
                   placeholder="Min 8 characters"
                   value={form.password}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      password: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                   className="mt-1"
                   required
                 />
               </div>
+
               <div className="sm:col-span-2 flex gap-3 pt-2">
                 <Button
                   type="submit"
-                  variant="secondary" className="font-bold"
+                  className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
                   disabled={creating || !canCreateSupervisors}
                 >
                   {creating ? 'Creating account...' : 'Create account'}
@@ -306,10 +306,7 @@ export default function AdminCustomerListPage() {
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((index) => (
-              <div
-                key={index}
-                className="h-14 bg-muted rounded-xl animate-pulse"
-              />
+              <div key={index} className="h-14 bg-muted rounded-xl animate-pulse" />
             ))}
           </div>
         )}
@@ -320,68 +317,34 @@ export default function AdminCustomerListPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-4 font-bold text-primary">
-                      Name
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">
-                      Designation
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Email
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Phone
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">
-                      Pincode
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary">
-                      Tracking access
-                    </th>
+                    <th className="text-left p-4 font-bold text-primary">Name</th>
+                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">Designation</th>
+                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Email</th>
+                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Phone</th>
+                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Pincode</th>
+                    <th className="text-left p-4 font-bold text-primary">Tracking access</th>
                   </tr>
                 </thead>
                 <tbody>
                   {supervisors.map((supervisor) => (
-                    <tr
-                      key={supervisor.id}
-                      className="border-b hover:bg-muted/20"
-                    >
-                      <td className="p-4 font-medium">
-                        {supervisor.full_name}
-                      </td>
-                      <td className="p-4 hidden sm:table-cell text-muted-foreground">
-                        {supervisor.designation}
-                      </td>
-                      <td className="p-4 hidden md:table-cell text-muted-foreground">
-                        {supervisor.email}
-                      </td>
-                      <td className="p-4 hidden md:table-cell text-muted-foreground">
-                        {supervisor.phone}
-                      </td>
-                      <td className="p-4 hidden lg:table-cell text-muted-foreground">
-                        {supervisor.pincode}
-                      </td>
+                    <tr key={supervisor.id} className="border-b hover:bg-muted/20">
+                      <td className="p-4 font-medium">{supervisor.full_name}</td>
+                      <td className="p-4 hidden sm:table-cell text-muted-foreground">{supervisor.designation}</td>
+                      <td className="p-4 hidden md:table-cell text-muted-foreground">{supervisor.email}</td>
+                      <td className="p-4 hidden md:table-cell text-muted-foreground">{supervisor.phone}</td>
+                      <td className="p-4 hidden lg:table-cell text-muted-foreground">{supervisor.pincode}</td>
                       <td className="p-4">
                         <Switch
                           checked={supervisor.tracking_access}
-                          onCheckedChange={() =>
-                            toggleAccess(
-                              supervisor.id,
-                              supervisor.tracking_access
-                            )
-                          }
+                          onCheckedChange={() => toggleAccess(supervisor.id, supervisor.tracking_access)}
                         />
                       </td>
                     </tr>
                   ))}
                   {supervisors.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="p-12 text-center text-muted-foreground"
-                      >
-                        No supervisors added yet. Click "Add supervisor" to
-                        create the first account.
+                      <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                        No supervisors added yet. Click "Add supervisor" to create the first account.
                       </td>
                     </tr>
                   )}

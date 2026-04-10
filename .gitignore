@@ -30,3 +30,5 @@ next.config.mjs
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
