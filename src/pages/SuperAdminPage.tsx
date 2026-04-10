@@ -17,6 +17,17 @@ import type { UserProfile, Sample } from '@/types'
 
 type Tab = 'overview' | 'admins' | 'supervisors' | 'samples' | 'settings'
 
+const ADMIN_DESIGNATIONS = [
+  'Lab Manager',
+  'Operations Manager',
+  'Quality Manager',
+  'Technical Manager',
+  'Project Manager',
+  'Senior Engineer',
+  'Geotechnical Engineer',
+  'Lab In-charge',
+]
+
 export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [admins, setAdmins] = useState<UserProfile[]>([])
@@ -25,12 +36,14 @@ export default function SuperAdminPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [isCustomDesignation, setIsCustomDesignation] = useState(false)
   const [form, setForm] = useState({
     full_name: '',
     email: '',
     phone: '',
     password: '',
-    designation: 'Lab Manager',
+    designation: '',
+    role: 'admin' as 'admin' | 'super_admin',
   })
 
   useEffect(() => {
@@ -73,15 +86,20 @@ export default function SuperAdminPage() {
       })
       if (error) throw error
 
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      await supabase.from('profiles').update({ role: 'admin' }).eq('email', form.email)
+      // Wait for trigger to create profile then update role
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      await supabase
+        .from('profiles')
+        .update({ role: form.role })
+        .eq('email', form.email)
 
-      toast.success(`Admin account created for ${form.full_name}`)
+      toast.success(`${form.role === 'super_admin' ? 'Super Admin' : 'Admin'} account created for ${form.full_name}`)
       setShowForm(false)
-      setForm({ full_name: '', email: '', phone: '', password: '', designation: 'Lab Manager' })
+      setIsCustomDesignation(false)
+      setForm({ full_name: '', email: '', phone: '', password: '', designation: '', role: 'admin' })
       fetchAll()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create admin')
+      toast.error(err instanceof Error ? err.message : 'Failed to create account')
     } finally {
       setCreating(false)
     }
@@ -133,7 +151,6 @@ export default function SuperAdminPage() {
               <p className="text-primary-foreground/60 text-sm">Full system access — Velciti Consulting Engineers</p>
             </div>
           </div>
-          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             {[
               { label: 'Total Admins', value: admins.length, icon: Shield },
@@ -177,7 +194,6 @@ export default function SuperAdminPage() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Sample status breakdown */}
               <div className="bg-card border rounded-xl p-6">
                 <h2 className="font-bold text-primary mb-4">Sample Status Breakdown</h2>
                 <div className="space-y-3">
@@ -192,81 +208,53 @@ export default function SuperAdminPage() {
                       <span className="text-sm flex-1">{item.label}</span>
                       <span className="font-bold text-primary">{item.value}</span>
                       <div className="w-24 bg-muted rounded-full h-2">
-                        <div
-                          className={`${item.color} h-2 rounded-full`}
-                          style={{ width: `${samples.length ? (item.value / samples.length) * 100 : 0}%` }}
-                        />
+                        <div className={`${item.color} h-2 rounded-full`} style={{ width: `${samples.length ? (item.value / samples.length) * 100 : 0}%` }} />
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* User status */}
               <div className="bg-card border rounded-xl p-6">
                 <h2 className="font-bold text-primary mb-4">User Status</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-primary" />
-                      <span className="text-sm">Active Admins</span>
+                  {[
+                    { icon: Shield, label: 'Active Admins', value: `${admins.filter(a => a.is_active).length} / ${admins.length}`, color: 'text-primary' },
+                    { icon: Users, label: 'Active Supervisors', value: `${supervisors.filter(s => s.is_active).length} / ${supervisors.length}`, color: 'text-primary' },
+                    { icon: UserX, label: 'Deactivated Accounts', value: String([...admins, ...supervisors].filter(u => !u.is_active).length), color: 'text-destructive' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                        <span className="text-sm">{item.label}</span>
+                      </div>
+                      <span className={`font-bold ${item.color}`}>{item.value}</span>
                     </div>
-                    <span className="font-bold text-primary">{admins.filter(a => a.is_active).length} / {admins.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      <span className="text-sm">Active Supervisors</span>
-                    </div>
-                    <span className="font-bold text-primary">{supervisors.filter(s => s.is_active).length} / {supervisors.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <UserX className="h-4 w-4 text-destructive" />
-                      <span className="text-sm">Deactivated Accounts</span>
-                    </div>
-                    <span className="font-bold text-destructive">
-                      {[...admins, ...supervisors].filter(u => !u.is_active).length}
-                    </span>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Quick actions */}
             <div className="bg-card border rounded-xl p-6">
               <h2 className="font-bold text-primary mb-4">Quick Actions</h2>
               <div className="grid sm:grid-cols-3 gap-3">
-                <button
-                  onClick={() => setActiveTab('admins')}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <span className="font-medium text-sm">Manage Admins</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-                <button
-                  onClick={() => setActiveTab('supervisors')}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Users className="h-5 w-5 text-primary" />
-                    <span className="font-medium text-sm">Manage Supervisors</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-                <button
-                  onClick={() => setActiveTab('samples')}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Package className="h-5 w-5 text-primary" />
-                    <span className="font-medium text-sm">View All Samples</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
+                {[
+                  { label: 'Manage Admins', icon: Shield, tab: 'admins' as Tab },
+                  { label: 'Manage Supervisors', icon: Users, tab: 'supervisors' as Tab },
+                  { label: 'View All Samples', icon: Package, tab: 'samples' as Tab },
+                ].map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={() => setActiveTab(action.tab)}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <action.icon className="h-5 w-5 text-primary" />
+                      <span className="font-medium text-sm">{action.label}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -281,37 +269,115 @@ export default function SuperAdminPage() {
                 className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
                 onClick={() => setShowForm(!showForm)}
               >
-                {showForm ? <><X className="h-4 w-4 mr-1" /> Cancel</> : <><Plus className="h-4 w-4 mr-1" /> Add admin</>}
+                {showForm ? <><X className="h-4 w-4 mr-1" /> Cancel</> : <><Plus className="h-4 w-4 mr-1" /> Add account</>}
               </Button>
             </div>
 
             {showForm && (
               <div className="bg-card border rounded-xl p-6 mb-6">
-                <h3 className="font-bold text-primary mb-5">Create new admin account</h3>
+                <h3 className="font-bold text-primary mb-5">Create new admin / super admin account</h3>
                 <form onSubmit={handleCreateAdmin} className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Full name</Label>
-                    <Input placeholder="Admin name" value={form.full_name} onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))} className="mt-1" required />
+                    <Input
+                      placeholder="Full name"
+                      value={form.full_name}
+                      onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))}
+                      className="mt-1"
+                      required
+                    />
                   </div>
+
                   <div>
                     <Label>Designation</Label>
-                    <Input placeholder="e.g. Lab Manager" value={form.designation} onChange={(e) => setForm(f => ({ ...f, designation: e.target.value }))} className="mt-1" required />
+                    <select
+                      value={isCustomDesignation ? 'custom' : form.designation}
+                      onChange={(e) => {
+                        if (e.target.value === 'custom') {
+                          setIsCustomDesignation(true)
+                          setForm(f => ({ ...f, designation: '' }))
+                        } else {
+                          setIsCustomDesignation(false)
+                          setForm(f => ({ ...f, designation: e.target.value }))
+                        }
+                      }}
+                      className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      required={!isCustomDesignation}
+                    >
+                      <option value="">Select designation</option>
+                      {ADMIN_DESIGNATIONS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                      <option value="custom">Other (type manually)</option>
+                    </select>
+                    {isCustomDesignation && (
+                      <Input
+                        placeholder="Type designation manually"
+                        value={form.designation}
+                        onChange={(e) => setForm(f => ({ ...f, designation: e.target.value }))}
+                        className="mt-2"
+                        required
+                      />
+                    )}
                   </div>
+
                   <div>
                     <Label>Email address</Label>
-                    <Input type="email" placeholder="admin@velciti.com" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} className="mt-1" required />
+                    <Input
+                      type="email"
+                      placeholder="admin@velciti.com"
+                      value={form.email}
+                      onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+                      className="mt-1"
+                      required
+                    />
                   </div>
+
                   <div>
                     <Label>Phone number</Label>
-                    <Input placeholder="9876543210" value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" required />
+                    <Input
+                      placeholder="9876543210"
+                      value={form.phone}
+                      onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+                      className="mt-1"
+                      required
+                    />
                   </div>
+
                   <div>
                     <Label>Temporary password</Label>
-                    <Input type="password" placeholder="Min 8 characters" value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} className="mt-1" required />
+                    <Input
+                      type="password"
+                      placeholder="Min 8 characters"
+                      value={form.password}
+                      onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
+                      className="mt-1"
+                      required
+                    />
                   </div>
+
+                  <div>
+                    <Label>Role</Label>
+                    <select
+                      value={form.role}
+                      onChange={(e) => setForm(f => ({ ...f, role: e.target.value as 'admin' | 'super_admin' }))}
+                      className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="super_admin">Super Admin</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Super Admin has full system access including creating other admins
+                    </p>
+                  </div>
+
                   <div className="sm:col-span-2 flex gap-3 pt-2">
-                    <Button type="submit" className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90" disabled={creating}>
-                      {creating ? 'Creating...' : 'Create admin account'}
+                    <Button
+                      type="submit"
+                      className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
+                      disabled={creating}
+                    >
+                      {creating ? 'Creating...' : `Create ${form.role === 'super_admin' ? 'Super Admin' : 'Admin'} account`}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
                   </div>
@@ -339,10 +405,10 @@ export default function SuperAdminPage() {
                         <tr key={admin.id} className="border-b hover:bg-muted/20">
                           <td className="p-4 font-medium">
                             <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${admin.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${admin.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
                               {admin.full_name}
                             </div>
-                            <div className="text-xs text-muted-foreground">{admin.designation}</div>
+                            <div className="text-xs text-muted-foreground ml-4">{admin.designation}</div>
                           </td>
                           <td className="p-4 hidden sm:table-cell text-muted-foreground">{admin.email}</td>
                           <td className="p-4 hidden md:table-cell text-muted-foreground">{admin.phone}</td>
@@ -350,14 +416,19 @@ export default function SuperAdminPage() {
                             <select
                               value={admin.role}
                               onChange={(e) => changeRole(admin.id, e.target.value as 'admin' | 'super_admin')}
-                              className="text-xs border rounded px-2 py-1 bg-background"
+                              className={`text-xs border rounded px-2 py-1 bg-background font-medium ${
+                                admin.role === 'super_admin' ? 'border-purple-300 text-purple-700' : 'border-blue-300 text-blue-700'
+                              }`}
                             >
                               <option value="admin">Admin</option>
                               <option value="super_admin">Super Admin</option>
                             </select>
                           </td>
                           <td className="p-4">
-                            <Switch checked={admin.is_active} onCheckedChange={() => toggleActive(admin.id, admin.is_active, 'admin')} />
+                            <Switch
+                              checked={admin.is_active}
+                              onCheckedChange={() => toggleActive(admin.id, admin.is_active, 'admin')}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -397,9 +468,13 @@ export default function SuperAdminPage() {
                         <tr key={s.id} className={`border-b hover:bg-muted/20 ${!s.is_active ? 'opacity-50' : ''}`}>
                           <td className="p-4 font-medium">
                             <div className="flex items-center gap-2">
-                              {s.is_active ? <UserCheck className="h-4 w-4 text-green-500" /> : <UserX className="h-4 w-4 text-destructive" />}
+                              {s.is_active
+                                ? <UserCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                : <UserX className="h-4 w-4 text-destructive flex-shrink-0" />
+                              }
                               {s.full_name}
                             </div>
+                            {!s.is_active && <span className="text-xs text-destructive ml-6">Deactivated</span>}
                           </td>
                           <td className="p-4 hidden sm:table-cell text-muted-foreground">{s.designation}</td>
                           <td className="p-4 hidden md:table-cell text-muted-foreground">{s.email}</td>
@@ -410,7 +485,10 @@ export default function SuperAdminPage() {
                             </span>
                           </td>
                           <td className="p-4">
-                            <Switch checked={s.is_active} onCheckedChange={() => toggleActive(s.id, s.is_active, 'supervisor')} />
+                            <Switch
+                              checked={s.is_active}
+                              onCheckedChange={() => toggleActive(s.id, s.is_active, 'supervisor')}
+                            />
                           </td>
                         </tr>
                       ))}
@@ -504,7 +582,7 @@ export default function SuperAdminPage() {
               <h2 className="font-bold text-primary mb-4">Role Permissions</h2>
               <div className="space-y-3 text-sm">
                 {[
-                  { role: 'Super Admin', color: 'bg-purple-100 text-purple-700', perms: 'Full system access — create admins, manage all users, view all samples, system settings' },
+                  { role: 'Super Admin', color: 'bg-purple-100 text-purple-700', perms: 'Full system access — create admins/super admins, manage all users, view all samples, system settings, override permissions' },
                   { role: 'Admin', color: 'bg-blue-100 text-blue-700', perms: 'Create supervisors, manage samples, update status, view reports, settings' },
                   { role: 'Supervisor', color: 'bg-green-100 text-green-700', perms: 'Submit samples, view own samples, update courier details, add remarks' },
                 ].map((item) => (
