@@ -23,14 +23,14 @@ export default function LoginPage() {
 
   // Redirect once auth resolves
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
-      if (user.role === "admin") {
-        navigate("/admin", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+  if (!isLoading && isAuthenticated && user) {
+    if (user.role === "super_admin" || user.role === "admin") {
+      navigate("/admin", { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
     }
-  }, [isLoading, isAuthenticated, user, navigate]);
+  }
+}, [isLoading, isAuthenticated, user, navigate]);
 
   if (isLoading) {
     return (

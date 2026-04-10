@@ -5,7 +5,7 @@ import type { UserRole } from '@/types'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRole?: UserRole
+  requiredRole?: UserRole | UserRole[]
 }
 
 export default function ProtectedRoute({
@@ -28,12 +28,44 @@ export default function ProtectedRoute({
     )
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />
+  // Block inactive users
+  if (!user.is_active) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-sm mx-auto px-4">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">🚫</span>
+          </div>
+          <h1 className="text-xl font-black text-primary mb-2">
+            Account Deactivated
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Your account has been deactivated. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Role check
+  if (requiredRole) {
+    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+
+    // super_admin bypasses all role checks
+    if (user.role === 'super_admin') {
+      return <>{children}</>
+    }
+
+    if (!roles.includes(user.role)) {
+      if (user.role === 'admin') {
+        return <Navigate to="/admin" replace />
+      }
+      return <Navigate to="/dashboard" replace />
+    }
   }
 
   return <>{children}</>

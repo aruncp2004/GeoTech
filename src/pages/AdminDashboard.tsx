@@ -32,6 +32,15 @@ export default function AdminDashboard() {
     return matchSearch && matchStatus
   })
 
+  const formatDate = (dateStr: string | undefined | null) => {
+    if (!dateStr) return '—'
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -40,24 +49,16 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-black text-primary">
-              Admin Dashboard
-            </h1>
+            <h1 className="text-2xl font-black text-primary">Admin Dashboard</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               All parcels across all supervisors
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Link
-              to="/admin/customers"
-              className="text-sm font-semibold text-primary hover:underline"
-            >
+            <Link to="/admin/customers" className="text-sm font-semibold text-primary hover:underline">
               Manage supervisors →
             </Link>
-            <Link
-              to="/admin/settings"
-              className="text-sm font-semibold text-primary hover:underline"
-            >
+            <Link to="/admin/settings" className="text-sm font-semibold text-primary hover:underline">
               Settings →
             </Link>
           </div>
@@ -66,35 +67,14 @@ export default function AdminDashboard() {
         {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            {
-              label: 'Total parcels',
-              value: samples.length,
-              color: 'bg-blue-50 text-primary',
-            },
-            {
-              label: 'Booked',
-              value: samples.filter((s) => s.status === 'booked').length,
-              color: 'bg-blue-50 text-blue-700',
-            },
-            {
-              label: 'In transit',
-              value: samples.filter((s) => s.status === 'in_transit' || s.status === 'picked_up').length,
-              color: 'bg-yellow-50 text-yellow-700',
-            },
-            {
-              label: 'Received',
-              value: samples.filter((s) => s.status === 'received').length,
-              color: 'bg-green-50 text-green-700',
-            },
+            { label: 'Total parcels', value: samples.length, color: 'bg-blue-50 text-primary' },
+            { label: 'Booked', value: samples.filter((s) => s.status === 'booked').length, color: 'bg-blue-50 text-blue-700' },
+            { label: 'In transit', value: samples.filter((s) => s.status === 'in_transit' || s.status === 'picked_up').length, color: 'bg-yellow-50 text-yellow-700' },
+            { label: 'Received', value: samples.filter((s) => s.status === 'received').length, color: 'bg-green-50 text-green-700' },
           ].map((card) => (
-            <div
-              key={card.label}
-              className={`${card.color} rounded-xl p-4 border`}
-            >
+            <div key={card.label} className={`${card.color} rounded-xl p-4 border`}>
               <div className="text-3xl font-black mb-1">{card.value}</div>
-              <div className="text-xs font-semibold uppercase tracking-wider opacity-70">
-                {card.label}
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-70">{card.label}</div>
             </div>
           ))}
         </div>
@@ -128,10 +108,7 @@ export default function AdminDashboard() {
         {isLoading && (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-14 bg-muted rounded-xl animate-pulse"
-              />
+              <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />
             ))}
           </div>
         )}
@@ -143,38 +120,20 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-4 font-bold text-primary">
-                      Sample ID
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">
-                      Supervisor
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Sample type
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Test required
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">
-                      Courier
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">
-                      AWB
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary">
-                      Status
-                    </th>
-                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">
-                      Date
-                    </th>
+                    <th className="text-left p-4 font-bold text-primary">Sample ID</th>
+                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">Supervisor</th>
+                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Sample type</th>
+                    <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Test required</th>
+                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Courier</th>
+                    <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">AWB</th>
+                    <th className="text-left p-4 font-bold text-primary">Status</th>
+                    <th className="text-left p-4 font-bold text-primary hidden sm:table-cell">Dispatch date</th>
+                    <th className="text-left p-4 font-bold text-primary hidden xl:table-cell">Received date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((s) => (
-                    <tr
-                      key={s.id}
-                      className="border-b hover:bg-muted/30 transition-colors"
-                    >
+                    <tr key={s.id} className="border-b hover:bg-muted/30 transition-colors">
                       <td className="p-4">
                         <Link
                           to={`/admin/parcel/${s.id}`}
@@ -183,39 +142,31 @@ export default function AdminDashboard() {
                           {s.sample_id}
                         </Link>
                       </td>
-                      <td className="p-4 hidden sm:table-cell font-medium">
-                        {s.customer_name || '—'}
-                      </td>
-                      <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">
-                        {s.sample_type}
-                      </td>
-                      <td className="p-4 hidden md:table-cell text-muted-foreground">
-                        {s.test_required}
-                      </td>
-                      <td className="p-4 hidden lg:table-cell">
-                        {s.courier_name}
-                      </td>
-                      <td className="p-4 hidden lg:table-cell text-muted-foreground">
-                        {s.awb_number || '—'}
-                      </td>
+                      <td className="p-4 hidden sm:table-cell font-medium">{s.customer_name || '—'}</td>
+                      <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">{s.sample_type}</td>
+                      <td className="p-4 hidden md:table-cell text-muted-foreground">{s.test_required}</td>
+                      <td className="p-4 hidden lg:table-cell">{s.courier_name}</td>
+                      <td className="p-4 hidden lg:table-cell text-muted-foreground">{s.awb_number || '—'}</td>
                       <td className="p-4">
                         <StatusBadge status={s.status as SampleStatus} />
                       </td>
                       <td className="p-4 hidden sm:table-cell text-muted-foreground">
-                        {new Date(s.created_at).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {formatDate(s.pickup_date)}
+                      </td>
+                      <td className="p-4 hidden xl:table-cell">
+                        {s.received_at ? (
+                          <span className="text-green-600 font-medium">
+                            {formatDate(s.received_at)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={8}
-                        className="p-12 text-center text-muted-foreground"
-                      >
+                      <td colSpan={9} className="p-12 text-center text-muted-foreground">
                         No parcels found.
                       </td>
                     </tr>

@@ -1,103 +1,107 @@
-import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useSamples } from '@/hooks/useSamples'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
-import StatusBadge from '@/components/StatusBadge'
-import TrackingTimeline from '@/components/TrackingTimeline'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useSamples } from "@/hooks/useSamples";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import StatusBadge from "@/components/StatusBadge";
+import TrackingTimeline from "@/components/TrackingTimeline";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { ArrowLeft } from 'lucide-react'
-import { toast } from 'sonner'
-import type { Sample, SampleStatus, SampleCondition } from '@/types'
-import { STATUS_ORDER } from '@/types'
+} from "@/components/ui/select";
+import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
+import type { Sample, SampleStatus, SampleCondition } from "@/types";
+import { STATUS_ORDER } from "@/types";
 
 export default function AdminParcelDetailPage() {
-  const { id } = useParams()
-  const { fetchSampleById, updateSample } = useSamples()
-  const [sample, setSample] = useState<Sample | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState<SampleStatus>('booked')
-  const [condition, setCondition] = useState<string>('')
-  const [notes, setNotes] = useState('')
-  const [awb, setAwb] = useState('')
-  const [saving, setSaving] = useState(false)
+  const { id } = useParams();
+  const { fetchSampleById, updateSample } = useSamples();
+  const [sample, setSample] = useState<Sample | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<SampleStatus>("booked");
+  const [condition, setCondition] = useState<string>("");
+  const [notes, setNotes] = useState("");
+  const [awb, setAwb] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!id) return
-    let cancelled = false
+    if (!id) return;
+    let cancelled = false;
 
     const load = async () => {
       try {
-        const data = await fetchSampleById(id)
+        const data = await fetchSampleById(id);
         if (!cancelled) {
-          setSample(data)
-          setStatus(data.status)
-          setCondition(data.condition || '')
-          setNotes(data.notes || '')
-          setAwb(data.awb_number || '')
+          setSample(data);
+          setStatus(data.status);
+          setCondition(data.condition || "");
+          setNotes(data.notes || "");
+          setAwb(data.awb_number || "");
         }
       } catch {
-        if (!cancelled) setSample(null)
+        if (!cancelled) setSample(null);
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setLoading(false);
       }
-    }
+    };
 
-    load()
-    return () => { cancelled = true }
-  }, [id, fetchSampleById])
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, fetchSampleById]);
 
   const handleUpdate = async () => {
-    if (!id) return
-    setSaving(true)
+    if (!id) return;
+    setSaving(true);
     try {
       await updateSample.mutateAsync({
         id,
         updates: {
           status,
-          condition: condition as SampleCondition || undefined,
+          condition: (condition as SampleCondition) || undefined,
           notes,
           awb_number: awb,
-          ...(status === 'received' ? { received_at: new Date().toISOString() } : {}),
+          ...(status === "received"
+            ? { received_at: new Date().toISOString() }
+            : {}),
         },
-      })
-      toast.success('Parcel updated successfully')
+      });
+      toast.success("Parcel updated successfully");
     } catch {
-      toast.error('Update failed. Please try again.')
+      toast.error("Update failed. Please try again.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleMarkReceived = async () => {
-    if (!id) return
-    setSaving(true)
+    if (!id) return;
+    setSaving(true);
     try {
       await updateSample.mutateAsync({
         id,
         updates: {
-          status: 'received',
+          status: "received",
           received_at: new Date().toISOString(),
         },
-      })
-      setStatus('received')
-      toast.success('Parcel marked as received')
+      });
+      setStatus("received");
+      toast.success("Parcel marked as received");
     } catch {
-      toast.error('Update failed. Please try again.')
+      toast.error("Update failed. Please try again.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -109,7 +113,7 @@ export default function AdminParcelDetailPage() {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (!sample) {
@@ -120,15 +124,12 @@ export default function AdminParcelDetailPage() {
           <h1 className="text-2xl font-black text-primary mb-4">
             Parcel not found
           </h1>
-          <Button
-            variant="secondary" className="font-bold"
-            asChild
-          >
+          <Button variant="secondary" className="font-bold" asChild>
             <Link to="/admin">Back to dashboard</Link>
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -160,29 +161,50 @@ export default function AdminParcelDetailPage() {
           <h2 className="font-bold text-primary mb-4">Sample details</h2>
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             {[
-              { label: 'Supervisor', value: sample.customer_name },
-              { label: 'Sample type', value: sample.sample_type },
-              { label: 'Project name', value: sample.project_name || '—' },
-              { label: 'Site location', value: sample.site_location || '—' },
-              { label: 'Sample description', value: sample.sample_description || '—' },
-              { label: 'Test required', value: sample.test_required },
-              { label: 'No. of parcels', value: sample.num_parcels },
-              { label: 'Weight', value: `${sample.weight_kg} kg` },
-              { label: 'Pickup address', value: sample.pickup_address },
-              { label: 'Pickup date', value: sample.pickup_date },
-              { label: 'Pickup time', value: sample.pickup_time },
-              { label: 'Courier', value: sample.courier_name },
-              { label: 'AWB number', value: sample.awb_number || 'Not assigned' },
+              { label: "Supervisor", value: sample.customer_name },
+              { label: "Sample type", value: sample.sample_type },
+              { label: "Project name", value: sample.project_name || "—" },
+              { label: "Site location", value: sample.site_location || "—" },
               {
-                label: 'Submitted on',
-                value: new Date(sample.created_at).toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
+                label: "Sample description",
+                value: sample.sample_description || "—",
+              },
+              { label: "Test required", value: sample.test_required },
+              { label: "No. of parcels", value: sample.num_parcels },
+              { label: "Weight", value: `${sample.weight_kg} kg` },
+              { label: "Pickup address", value: sample.pickup_address },
+              { label: "Dispatch date", value: sample.pickup_date },
+              { label: "Pickup time", value: sample.pickup_time },
+              { label: "Courier", value: sample.courier_name },
+              {
+                label: "AWB number",
+                value: sample.awb_number || "Not assigned",
+              },
+              {
+                label: "Submitted on",
+                value: new Date(sample.created_at).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
                 }),
               },
+              ...(sample.received_at
+                ? [
+                    {
+                      label: "Received on",
+                      value: new Date(sample.received_at).toLocaleDateString(
+                        "en-IN",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        },
+                      ),
+                    },
+                  ]
+                : []),
               ...(sample.condition
-                ? [{ label: 'Condition on receipt', value: sample.condition }]
+                ? [{ label: "Condition on receipt", value: sample.condition }]
                 : []),
             ].map((item) => (
               <div
@@ -190,8 +212,10 @@ export default function AdminParcelDetailPage() {
                 className="flex justify-between py-2 border-b last:border-0"
               >
                 <span className="text-muted-foreground">{item.label}</span>
-                <span className="font-semibold capitalize text-right">
-                  {String(item.value || '—')}
+                <span
+                  className={`font-semibold capitalize text-right ${item.label === "Received on" ? "text-green-600" : ""}`}
+                >
+                  {String(item.value || "—")}
                 </span>
               </div>
             ))}
@@ -221,7 +245,9 @@ export default function AdminParcelDetailPage() {
                   <SelectContent>
                     {STATUS_ORDER.map((s) => (
                       <SelectItem key={s} value={s}>
-                        {s.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                        {s
+                          .replace("_", " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase())}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -265,13 +291,14 @@ export default function AdminParcelDetailPage() {
 
             <div className="flex gap-3 pt-2">
               <Button
-                variant="secondary" className="font-bold"
+                variant="secondary"
+                className="font-bold"
                 onClick={handleUpdate}
                 disabled={saving}
               >
-                {saving ? 'Saving…' : 'Save changes'}
+                {saving ? "Saving…" : "Save changes"}
               </Button>
-              {status !== 'received' && (
+              {status !== "received" && (
                 <Button
                   variant="outline"
                   onClick={handleMarkReceived}
@@ -286,5 +313,5 @@ export default function AdminParcelDetailPage() {
       </div>
       <Footer />
     </div>
-  )
+  );
 }

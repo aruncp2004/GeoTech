@@ -2,9 +2,9 @@ export type SampleStatus = 'booked' | 'picked_up' | 'in_transit' | 'received';
 
 export type SampleCondition = 'intact' | 'damaged';
 
-export type SampleType = 'soil' | 'rock' | 'water' | string;
+export type SampleType = 'soil' | 'rock' | 'water' | 'concrete' | 'aggregate' | 'other' | string;
 
-export type UserRole = 'customer' | 'admin';
+export type UserRole = 'super_admin' | 'admin' | 'customer';
 
 export interface UserProfile {
   id: string;
@@ -17,6 +17,7 @@ export interface UserProfile {
   pincode: string;
   role: UserRole;
   tracking_access: boolean;
+  is_active: boolean;
   created_at: string;
 }
 

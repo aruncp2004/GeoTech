@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, X } from 'lucide-react'
+import { ArrowLeft, Plus, X, UserCheck, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
@@ -59,12 +59,10 @@ export default function AdminCustomerListPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!supabaseAdmin) {
       toast.error('Supervisor creation is not configured.')
       return
     }
-
     setCreating(true)
     try {
       const { error } = await supabaseAdmin.auth.admin.createUser({
@@ -80,9 +78,7 @@ export default function AdminCustomerListPage() {
           pincode: form.pincode,
         },
       })
-
       if (error) throw error
-
       toast.success(`Account created for ${form.full_name}`)
       setShowForm(false)
       setIsCustomDesignation(false)
@@ -98,8 +94,7 @@ export default function AdminCustomerListPage() {
       })
       fetchSupervisors()
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to create account'
+      const message = err instanceof Error ? err.message : 'Failed to create account'
       toast.error(message)
     } finally {
       setCreating(false)
@@ -118,16 +113,31 @@ export default function AdminCustomerListPage() {
     }
 
     setSupervisors((prev) =>
-      prev.map((supervisor) =>
-        supervisor.id === id
-          ? { ...supervisor, tracking_access: !current }
-          : supervisor
-      )
+      prev.map((s) => s.id === id ? { ...s, tracking_access: !current } : s)
     )
-
-    const supervisor = supervisors.find((item) => item.id === id)
+    const supervisor = supervisors.find((s) => s.id === id)
     toast.success(
       `Tracking access ${!current ? 'granted to' : 'revoked from'} ${supervisor?.full_name}`
+    )
+  }
+
+  const toggleActive = async (id: string, current: boolean) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: !current })
+      .eq('id', id)
+
+    if (error) {
+      toast.error('Failed to update account status')
+      return
+    }
+
+    setSupervisors((prev) =>
+      prev.map((s) => s.id === id ? { ...s, is_active: !current } : s)
+    )
+    const supervisor = supervisors.find((s) => s.id === id)
+    toast.success(
+      `${supervisor?.full_name} account ${!current ? 'activated' : 'deactivated'}`
     )
   }
 
@@ -143,9 +153,7 @@ export default function AdminCustomerListPage() {
         </Link>
 
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-black text-primary">
-            Field supervisors
-          </h1>
+          <h1 className="text-2xl font-black text-primary">Field supervisors</h1>
           <Button
             className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
             onClick={() => setShowForm(!showForm)}
@@ -159,27 +167,24 @@ export default function AdminCustomerListPage() {
           </Button>
         </div>
         <p className="text-muted-foreground text-sm mb-8">
-          Manage field supervisor accounts and tracking access
+          Manage field supervisor accounts, tracking access and account status
         </p>
 
         {!canCreateSupervisors && (
           <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 mb-8 text-sm">
-            Supervisor creation is disabled in this environment because the
-            service key is not configured.
+            Supervisor creation is disabled in this environment because the service key is not configured.
           </div>
         )}
 
         {showForm && (
           <div className="bg-card border rounded-xl p-6 mb-8">
-            <h2 className="font-bold text-primary mb-5">
-              Create new supervisor account
-            </h2>
+            <h2 className="font-bold text-primary mb-5">Create new supervisor account</h2>
             <form onSubmit={handleCreate} className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="full_name">Full name</Label>
                 <Input
                   id="full_name"
-                  placeholder="ArunKumar"
+                  placeholder="Rajesh Kumar"
                   value={form.full_name}
                   onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
                   className="mt-1"
@@ -226,7 +231,7 @@ export default function AdminCustomerListPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="arun@velciti.com"
+                  placeholder="rajesh@velciti.com"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="mt-1"
@@ -291,11 +296,7 @@ export default function AdminCustomerListPage() {
                 >
                   {creating ? 'Creating account...' : 'Create account'}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowForm(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
               </div>
@@ -322,13 +323,26 @@ export default function AdminCustomerListPage() {
                     <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Email</th>
                     <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Phone</th>
                     <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Pincode</th>
-                    <th className="text-left p-4 font-bold text-primary">Tracking access</th>
+                    <th className="text-left p-4 font-bold text-primary">Tracking</th>
+                    <th className="text-left p-4 font-bold text-primary">Account</th>
                   </tr>
                 </thead>
                 <tbody>
                   {supervisors.map((supervisor) => (
-                    <tr key={supervisor.id} className="border-b hover:bg-muted/20">
-                      <td className="p-4 font-medium">{supervisor.full_name}</td>
+                    <tr key={supervisor.id} className={`border-b hover:bg-muted/20 ${!supervisor.is_active ? 'opacity-50' : ''}`}>
+                      <td className="p-4 font-medium">
+                        <div className="flex items-center gap-2">
+                          {supervisor.is_active ? (
+                            <UserCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          ) : (
+                            <UserX className="h-4 w-4 text-destructive flex-shrink-0" />
+                          )}
+                          {supervisor.full_name}
+                        </div>
+                        {!supervisor.is_active && (
+                          <span className="text-xs text-destructive">Deactivated</span>
+                        )}
+                      </td>
                       <td className="p-4 hidden sm:table-cell text-muted-foreground">{supervisor.designation}</td>
                       <td className="p-4 hidden md:table-cell text-muted-foreground">{supervisor.email}</td>
                       <td className="p-4 hidden md:table-cell text-muted-foreground">{supervisor.phone}</td>
@@ -337,13 +351,20 @@ export default function AdminCustomerListPage() {
                         <Switch
                           checked={supervisor.tracking_access}
                           onCheckedChange={() => toggleAccess(supervisor.id, supervisor.tracking_access)}
+                          disabled={!supervisor.is_active}
+                        />
+                      </td>
+                      <td className="p-4">
+                        <Switch
+                          checked={supervisor.is_active}
+                          onCheckedChange={() => toggleActive(supervisor.id, supervisor.is_active)}
                         />
                       </td>
                     </tr>
                   ))}
                   {supervisors.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                      <td colSpan={7} className="p-12 text-center text-muted-foreground">
                         No supervisors added yet. Click "Add supervisor" to create the first account.
                       </td>
                     </tr>

@@ -10,6 +10,7 @@ import AdminDashboard from "@/pages/AdminDashboard"
 import AdminParcelDetailPage from "@/pages/AdminParcelDetailPage"
 import AdminCustomerListPage from "@/pages/AdminCustomerListPage"
 import AdminSettingsPage from "@/pages/AdminSettingsPage"
+import SuperAdminPage from "@/pages/SuperAdminPage"
 import NotFound from "@/pages/NotFound"
 
 const queryClient = new QueryClient({
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
 
+          {/* Supervisor routes */}
           <Route
             path="/dashboard"
             element={
@@ -70,10 +72,11 @@ export default function App() {
             }
           />
 
+          {/* Admin routes */}
           <Route
             path="/admin"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
                 <AdminDashboard />
               </ProtectedRoute>
             }
@@ -81,7 +84,7 @@ export default function App() {
           <Route
             path="/admin/parcel/:id"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
                 <AdminParcelDetailPage />
               </ProtectedRoute>
             }
@@ -89,7 +92,7 @@ export default function App() {
           <Route
             path="/admin/parcels/:id"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
                 <AdminParcelDetailPage />
               </ProtectedRoute>
             }
@@ -97,7 +100,7 @@ export default function App() {
           <Route
             path="/admin/customers"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
                 <AdminCustomerListPage />
               </ProtectedRoute>
             }
@@ -105,7 +108,7 @@ export default function App() {
           <Route
             path="/admin/supervisors"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
                 <AdminCustomerListPage />
               </ProtectedRoute>
             }
@@ -113,8 +116,18 @@ export default function App() {
           <Route
             path="/admin/settings"
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
                 <AdminSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Super Admin routes */}
+          <Route
+            path="/superadmin"
+            element={
+              <ProtectedRoute requiredRole="super_admin">
+                <SuperAdminPage />
               </ProtectedRoute>
             }
           />
