@@ -8,13 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Package, ArrowLeft, CheckCircle2, MapPin, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { SampleType } from "@/types";
@@ -50,7 +43,6 @@ export default function SubmitSamplePage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!form.sample_type) newErrors.sample_type = "Select a sample type";
     if (!form.project_name) newErrors.project_name = "Project name is required";
     if (!form.site_location) newErrors.site_location = "Site location is required";
     if (!form.sample_description) newErrors.sample_description = "Sample description is required";
@@ -87,9 +79,7 @@ export default function SubmitSamplePage() {
               a.state,
               a.postcode,
             ].filter(Boolean);
-            const shortAddress = parts.length > 0
-              ? parts.join(", ")
-              : `${lat}, ${lng}`;
+            const shortAddress = parts.length > 0 ? parts.join(", ") : `${lat}, ${lng}`;
             setForm((f) => ({ ...f, site_location: shortAddress }));
             toast.success("Location detected — edit if needed");
           } else {
@@ -123,11 +113,11 @@ export default function SubmitSamplePage() {
     if (!user) return;
     setLoading(true);
     try {
-      const id = generateSampleId();
+      const id = await generateSampleId();
       await createSample.mutateAsync({
         sample_id: id,
         customer_id: user.id,
-        sample_type: form.sample_type as SampleType,
+        sample_type: (form.sample_type || "other") as SampleType,
         test_required: form.test_required || "Not specified",
         project_name: form.project_name,
         site_location: form.site_location,
@@ -199,37 +189,13 @@ export default function SubmitSamplePage() {
             <h2 className="font-bold text-primary mb-4">What to do next</h2>
             <div className="space-y-4">
               {[
-                {
-                  num: "1",
-                  title: "Write Sample ID on parcel",
-                  desc: `Write "${generatedId}" clearly on all your parcels`,
-                  done: true,
-                },
-                {
-                  num: "2",
-                  title: "Dispatch via courier",
-                  desc: "Hand over to your courier service",
-                  done: false,
-                },
-                {
-                  num: "3",
-                  title: "Get tracking number",
-                  desc: "Collect AWB / tracking number from courier",
-                  done: false,
-                },
-                {
-                  num: "4",
-                  title: "Update tracking details",
-                  desc: "Come back to dashboard and update courier + tracking number",
-                  done: false,
-                },
+                { num: "1", title: "Write Sample ID on parcel", desc: `Write "${generatedId}" clearly on all your parcels`, done: true },
+                { num: "2", title: "Dispatch via courier", desc: "Hand over to your courier service", done: false },
+                { num: "3", title: "Get tracking number", desc: "Collect AWB / tracking number from courier", done: false },
+                { num: "4", title: "Update tracking details", desc: "Come back to dashboard and update courier + tracking number", done: false },
               ].map((item) => (
                 <div key={item.num} className="flex gap-4 items-start">
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                      item.done ? "bg-secondary text-primary" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${item.done ? "bg-secondary text-primary" : "bg-muted text-muted-foreground"}`}>
                     {item.done ? <CheckCircle2 className="h-4 w-4" /> : item.num}
                   </div>
                   <div>
@@ -242,11 +208,7 @@ export default function SubmitSamplePage() {
           </div>
 
           <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              className="flex-1 font-bold"
-              onClick={() => navigate("/dashboard")}
-            >
+            <Button variant="secondary" className="flex-1 font-bold" onClick={() => navigate("/dashboard")}>
               Go to dashboard
             </Button>
             <Button variant="outline" className="flex-1" onClick={resetForm}>
@@ -262,10 +224,7 @@ export default function SubmitSamplePage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-10">
-        <Link
-          to="/dashboard"
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
-        >
+        <Link to="/dashboard" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-4 w-4" /> Dashboard
         </Link>
 
@@ -281,39 +240,29 @@ export default function SubmitSamplePage() {
             <h2 className="font-bold text-primary">Sample information</h2>
 
             <div className="grid sm:grid-cols-2 gap-4">
-              {/* Sample type */}
+
+              {/* Sample type — optional, no * */}
               <div>
-                <Label>
-                  Sample type <span className="text-destructive">*</span>
-                </Label>
-                <Select
+                <Label>Sample type (optional)</Label>
+                <select
                   value={form.sample_type}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, sample_type: v as SampleType }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, sample_type: e.target.value as SampleType }))}
+                  className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="soil">Soil</SelectItem>
-                    <SelectItem value="rock">Rock</SelectItem>
-                    <SelectItem value="water">Water</SelectItem>
-                    <SelectItem value="concrete">Concrete</SelectItem>
-                    <SelectItem value="aggregate">Aggregate</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.sample_type && (
-                  <p className="text-destructive text-xs mt-1">{errors.sample_type}</p>
-                )}
+                  <option value="">Select type</option>
+                  <option value="soil">Soil</option>
+                  <option value="rock">Rock</option>
+                  <option value="water">Water</option>
+                  <option value="concrete">Concrete</option>
+                  <option value="aggregate">Aggregate</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
 
-              {/* Test required */}
+              {/* Test required — optional */}
               <div>
                 <Label htmlFor="test">
-                  Test required{" "}
-                  <span className="text-muted-foreground text-xs">(optional)</span>
+                  Test required <span className="text-muted-foreground text-xs">(optional)</span>
                 </Label>
                 <Input
                   id="test"
@@ -324,7 +273,7 @@ export default function SubmitSamplePage() {
                 />
               </div>
 
-              {/* Project name */}
+              {/* Project name — required */}
               <div>
                 <Label htmlFor="project">
                   Project name <span className="text-destructive">*</span>
@@ -336,12 +285,10 @@ export default function SubmitSamplePage() {
                   onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}
                   className="mt-1"
                 />
-                {errors.project_name && (
-                  <p className="text-destructive text-xs mt-1">{errors.project_name}</p>
-                )}
+                {errors.project_name && <p className="text-destructive text-xs mt-1">{errors.project_name}</p>}
               </div>
 
-              {/* Site location */}
+              {/* Site location — required */}
               <div>
                 <Label htmlFor="site">
                   Site location <span className="text-destructive">*</span>
@@ -349,11 +296,9 @@ export default function SubmitSamplePage() {
                 <div className="flex gap-2 mt-1">
                   <Input
                     id="site"
-                    placeholder="e.g. Km 142, Trichy Road or use Auto GPS"
+                    placeholder="e.g. Km 142, Trichy Road or use GPS"
                     value={form.site_location}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, site_location: e.target.value }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, site_location: e.target.value }))}
                     className="flex-1"
                   />
                   <button
@@ -362,23 +307,17 @@ export default function SubmitSamplePage() {
                     disabled={gpsLoading}
                     className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors whitespace-nowrap flex items-center gap-1 disabled:opacity-50"
                   >
-                    {gpsLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <MapPin className="h-3.5 w-3.5" />
-                    )}
+                    {gpsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
                     {gpsLoading ? "..." : "GPS"}
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Click GPS to auto-detect or type manually — always editable
                 </p>
-                {errors.site_location && (
-                  <p className="text-destructive text-xs mt-1">{errors.site_location}</p>
-                )}
+                {errors.site_location && <p className="text-destructive text-xs mt-1">{errors.site_location}</p>}
               </div>
 
-              {/* Sample description — full width, required, big textarea */}
+              {/* Sample description — required, full width, big textarea */}
               <div className="sm:col-span-2">
                 <Label htmlFor="desc">
                   Sample description <span className="text-destructive">*</span>
@@ -387,14 +326,10 @@ export default function SubmitSamplePage() {
                   id="desc"
                   placeholder="e.g. Bore hole #3 at 6m depth, undisturbed sample collected using thin-walled sampler..."
                   value={form.sample_description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, sample_description: e.target.value }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, sample_description: e.target.value }))}
                   className="mt-1 min-h-[100px] resize-y"
                 />
-                {errors.sample_description && (
-                  <p className="text-destructive text-xs mt-1">{errors.sample_description}</p>
-                )}
+                {errors.sample_description && <p className="text-destructive text-xs mt-1">{errors.sample_description}</p>}
               </div>
             </div>
           </div>
@@ -416,9 +351,7 @@ export default function SubmitSamplePage() {
                   onChange={(e) => setForm((f) => ({ ...f, num_parcels: e.target.value }))}
                   className="mt-1"
                 />
-                {errors.num_parcels && (
-                  <p className="text-destructive text-xs mt-1">{errors.num_parcels}</p>
-                )}
+                {errors.num_parcels && <p className="text-destructive text-xs mt-1">{errors.num_parcels}</p>}
               </div>
 
               <div>
@@ -447,9 +380,7 @@ export default function SubmitSamplePage() {
                   onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))}
                   className="mt-1"
                 />
-                {errors.pickup_date && (
-                  <p className="text-destructive text-xs mt-1">{errors.pickup_date}</p>
-                )}
+                {errors.pickup_date && <p className="text-destructive text-xs mt-1">{errors.pickup_date}</p>}
               </div>
 
               <div>
@@ -461,9 +392,7 @@ export default function SubmitSamplePage() {
                   onChange={(e) => setForm((f) => ({ ...f, courier_name: e.target.value }))}
                   className="mt-1"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  You can update this after dispatch
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">You can update this after dispatch</p>
               </div>
 
               <div>
