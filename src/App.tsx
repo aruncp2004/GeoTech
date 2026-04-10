@@ -12,6 +12,7 @@ import AdminCustomerListPage from "@/pages/AdminCustomerListPage"
 import AdminSettingsPage from "@/pages/AdminSettingsPage"
 import SuperAdminPage from "@/pages/SuperAdminPage"
 import NotFound from "@/pages/NotFound"
+import ResetPasswordPage from "@/pages/ResetPasswordPage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,7 +132,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster richColors position="top-right" />

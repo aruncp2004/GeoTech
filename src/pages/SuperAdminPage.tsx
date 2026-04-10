@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { useAuthStore } from '@/store/authStore'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { logActivity, getActionIcon, getActionColor } from '@/lib/activityLog'
 import {
   Shield, Users, UserCheck, UserX, Plus, X,
   Package, Settings, ChevronRight, ArrowLeft,
-  Activity, Lock
+  Activity, Lock, RefreshCw
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { UserProfile, Sample } from '@/types'
 
-type Tab = 'overview' | 'admins' | 'supervisors' | 'samples' | 'settings'
+type Tab = 'overview' | 'admins' | 'supervisors' | 'samples' | 'settings' | 'logs'
 
 const ADMIN_DESIGNATIONS = [
   'Lab Manager',
@@ -29,11 +31,14 @@ const ADMIN_DESIGNATIONS = [
 ]
 
 export default function SuperAdminPage() {
+  const { user: currentUser } = useAuthStore()
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [admins, setAdmins] = useState<UserProfile[]>([])
   const [supervisors, setSupervisors] = useState<UserProfile[]>([])
   const [samples, setSamples] = useState<Sample[]>([])
+  const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [logsLoading, setLogsLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [creating, setCreating] = useState(false)
   const [isCustomDesignation, setIsCustomDesignation] = useState(false)
@@ -52,23 +57,33 @@ export default function SuperAdminPage() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [adminsRes, supervisorsRes, samplesRes] = await Promise.all([
+    const [adminsRes, supervisorsRes, samplesRes, logsRes] = await Promise.all([
       supabase.from('profiles').select('*').in('role', ['admin', 'super_admin']).order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').eq('role', 'customer').order('created_at', { ascending: false }),
       supabase.from('samples').select('*').order('created_at', { ascending: false }),
+      supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(50),
     ])
     if (adminsRes.data) setAdmins(adminsRes.data as UserProfile[])
     if (supervisorsRes.data) setSupervisors(supervisorsRes.data as UserProfile[])
     if (samplesRes.data) setSamples(samplesRes.data as Sample[])
+    if (logsRes.data) setLogs(logsRes.data)
     setLoading(false)
+  }
+
+  const fetchLogs = async () => {
+    setLogsLoading(true)
+    const { data } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (data) setLogs(data)
+    setLogsLoading(false)
   }
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!supabaseAdmin) {
-      toast.error('Service key not configured')
-      return
-    }
+    if (!supabaseAdmin) { toast.error('Service key not configured'); return }
     setCreating(true)
     try {
       const { error } = await supabaseAdmin.auth.admin.createUser({
@@ -86,12 +101,21 @@ export default function SuperAdminPage() {
       })
       if (error) throw error
 
-      // Wait for trigger to create profile then update role
       await new Promise(resolve => setTimeout(resolve, 1500))
-      await supabase
-        .from('profiles')
-        .update({ role: form.role })
-        .eq('email', form.email)
+      await supabase.from('profiles').update({ role: form.role }).eq('email', form.email)
+
+      // Log the activity
+      if (currentUser) {
+        await logActivity({
+          actor_id: currentUser.id,
+          actor_name: currentUser.full_name,
+          actor_role: currentUser.role,
+          action: `created ${form.role === 'super_admin' ? 'Super Admin' : 'Admin'} account`,
+          target_name: form.full_name,
+          target_role: form.role,
+          details: `Email: ${form.email} | Designation: ${form.designation}`,
+        })
+      }
 
       toast.success(`${form.role === 'super_admin' ? 'Super Admin' : 'Admin'} account created for ${form.full_name}`)
       setShowForm(false)
@@ -108,20 +132,101 @@ export default function SuperAdminPage() {
   const toggleActive = async (id: string, current: boolean, type: 'admin' | 'supervisor') => {
     const { error } = await supabase.from('profiles').update({ is_active: !current }).eq('id', id)
     if (error) { toast.error('Failed to update'); return }
+
+    const person = [...admins, ...supervisors].find(p => p.id === id)
+
     if (type === 'admin') {
       setAdmins(prev => prev.map(a => a.id === id ? { ...a, is_active: !current } : a))
     } else {
       setSupervisors(prev => prev.map(s => s.id === id ? { ...s, is_active: !current } : s))
     }
-    const person = [...admins, ...supervisors].find(p => p.id === id)
+
+    // Log the activity
+    if (currentUser && person) {
+      await logActivity({
+        actor_id: currentUser.id,
+        actor_name: currentUser.full_name,
+        actor_role: currentUser.role,
+        action: !current ? 'activated account' : 'deactivated account',
+        target_id: id,
+        target_name: person.full_name,
+        target_role: person.role,
+        details: `Account ${!current ? 'activated' : 'deactivated'} by ${currentUser.full_name}`,
+      })
+    }
+
     toast.success(`${person?.full_name} ${!current ? 'activated' : 'deactivated'}`)
   }
 
   const changeRole = async (id: string, newRole: 'admin' | 'super_admin') => {
+    const oldAdmin = admins.find(a => a.id === id)
     const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', id)
     if (error) { toast.error('Failed to update role'); return }
+
     setAdmins(prev => prev.map(a => a.id === id ? { ...a, role: newRole } : a))
+
+    // Log the activity
+    if (currentUser && oldAdmin) {
+      await logActivity({
+        actor_id: currentUser.id,
+        actor_name: currentUser.full_name,
+        actor_role: currentUser.role,
+        action: 'changed role',
+        target_id: id,
+        target_name: oldAdmin.full_name,
+        target_role: newRole,
+        details: `Role changed from ${oldAdmin.role} to ${newRole}`,
+      })
+    }
+
     toast.success('Role updated successfully')
+  }
+
+  const sendResetEmail = async (email: string, name: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) {
+      toast.error(`Failed to send reset email to ${name}`)
+    } else {
+      // Log the activity
+      if (currentUser) {
+        await logActivity({
+          actor_id: currentUser.id,
+          actor_name: currentUser.full_name,
+          actor_role: currentUser.role,
+          action: 'sent password reset email',
+          target_name: name,
+          details: `Reset email sent to ${email}`,
+        })
+      }
+      toast.success(`Password reset email sent to ${name}`)
+    }
+  }
+
+  const setPasswordDirectly = async (userId: string, name: string) => {
+    if (!supabaseAdmin) { toast.error('Service key not configured'); return }
+    const newPassword = prompt(`Set new password for ${name} (min 8 characters):`)
+    if (!newPassword) return
+    if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password: newPassword })
+    if (error) {
+      toast.error('Failed to update password')
+    } else {
+      // Log the activity
+      if (currentUser) {
+        await logActivity({
+          actor_id: currentUser.id,
+          actor_name: currentUser.full_name,
+          actor_role: currentUser.role,
+          action: 'set password directly',
+          target_id: userId,
+          target_name: name,
+          details: 'Password was set directly by Super Admin',
+        })
+      }
+      toast.success(`Password updated for ${name}`)
+    }
   }
 
   const TABS = [
@@ -129,6 +234,7 @@ export default function SuperAdminPage() {
     { id: 'admins' as Tab, label: 'Admins', icon: Shield },
     { id: 'supervisors' as Tab, label: 'Supervisors', icon: Users },
     { id: 'samples' as Tab, label: 'All Samples', icon: Package },
+    { id: 'logs' as Tab, label: 'Activity Logs', icon: RefreshCw },
     { id: 'settings' as Tab, label: 'System', icon: Settings },
   ]
 
@@ -153,10 +259,10 @@ export default function SuperAdminPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             {[
-              { label: 'Total Admins', value: admins.length, icon: Shield },
-              { label: 'Total Supervisors', value: supervisors.length, icon: Users },
-              { label: 'Total Samples', value: samples.length, icon: Package },
-              { label: 'Active Users', value: [...admins, ...supervisors].filter(u => u.is_active).length, icon: UserCheck },
+              { label: 'Total Admins', value: admins.length },
+              { label: 'Total Supervisors', value: supervisors.length },
+              { label: 'Total Samples', value: samples.length },
+              { label: 'Active Users', value: [...admins, ...supervisors].filter(u => u.is_active).length },
             ].map((stat) => (
               <div key={stat.label} className="bg-white/10 rounded-xl p-4">
                 <div className="text-2xl font-black text-secondary">{stat.value}</div>
@@ -167,9 +273,9 @@ export default function SuperAdminPage() {
         </div>
 
         {/* Warning */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-900 flex items-center gap-2">
-          <Lock className="h-4 w-4 flex-shrink-0" />
-          You are in the Super Admin panel. Changes made here affect system-wide access and roles.
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-6 text-xs text-yellow-800 flex items-center gap-2">
+          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+          Super Admin Panel — changes here affect system-wide access and roles
         </div>
 
         {/* Tabs */}
@@ -177,7 +283,10 @@ export default function SuperAdminPage() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                if (tab.id === 'logs') fetchLogs()
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.id
                   ? 'bg-primary text-primary-foreground'
@@ -217,11 +326,11 @@ export default function SuperAdminPage() {
 
               <div className="bg-card border rounded-xl p-6">
                 <h2 className="font-bold text-primary mb-4">User Status</h2>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {[
                     { icon: Shield, label: 'Active Admins', value: `${admins.filter(a => a.is_active).length} / ${admins.length}`, color: 'text-primary' },
                     { icon: Users, label: 'Active Supervisors', value: `${supervisors.filter(s => s.is_active).length} / ${supervisors.length}`, color: 'text-primary' },
-                    { icon: UserX, label: 'Deactivated Accounts', value: String([...admins, ...supervisors].filter(u => !u.is_active).length), color: 'text-destructive' },
+                    { icon: UserX, label: 'Deactivated', value: String([...admins, ...supervisors].filter(u => !u.is_active).length), color: 'text-destructive' },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center gap-2">
@@ -232,6 +341,24 @@ export default function SuperAdminPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Recent logs preview */}
+                {logs.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-xs font-bold text-primary mb-2">Recent Activity</p>
+                    <div className="space-y-2">
+                      {logs.slice(0, 3).map((log) => (
+                        <div key={log.id} className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span>{getActionIcon(log.action)}</span>
+                          <span><span className="font-medium text-foreground">{log.actor_name}</span> {log.action} {log.target_name && <span className="font-medium text-foreground">{log.target_name}</span>}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => setActiveTab('logs')} className="text-xs text-primary hover:underline mt-2">
+                      View all logs →
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -243,11 +370,8 @@ export default function SuperAdminPage() {
                   { label: 'Manage Supervisors', icon: Users, tab: 'supervisors' as Tab },
                   { label: 'View All Samples', icon: Package, tab: 'samples' as Tab },
                 ].map((action) => (
-                  <button
-                    key={action.label}
-                    onClick={() => setActiveTab(action.tab)}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
-                  >
+                  <button key={action.label} onClick={() => setActiveTab(action.tab)}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors">
                     <div className="flex items-center gap-3">
                       <action.icon className="h-5 w-5 text-primary" />
                       <span className="font-medium text-sm">{action.label}</span>
@@ -265,10 +389,7 @@ export default function SuperAdminPage() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-black text-primary">Admin Accounts</h2>
-              <Button
-                className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
-                onClick={() => setShowForm(!showForm)}
-              >
+              <Button className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90" onClick={() => setShowForm(!showForm)}>
                 {showForm ? <><X className="h-4 w-4 mr-1" /> Cancel</> : <><Plus className="h-4 w-4 mr-1" /> Add account</>}
               </Button>
             </div>
@@ -279,13 +400,7 @@ export default function SuperAdminPage() {
                 <form onSubmit={handleCreateAdmin} className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Full name</Label>
-                    <Input
-                      placeholder="Full name"
-                      value={form.full_name}
-                      onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))}
-                      className="mt-1"
-                      required
-                    />
+                    <Input placeholder="Full name" value={form.full_name} onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))} className="mt-1" required />
                   </div>
 
                   <div>
@@ -305,78 +420,41 @@ export default function SuperAdminPage() {
                       required={!isCustomDesignation}
                     >
                       <option value="">Select designation</option>
-                      {ADMIN_DESIGNATIONS.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
+                      {ADMIN_DESIGNATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
                       <option value="custom">Other (type manually)</option>
                     </select>
                     {isCustomDesignation && (
-                      <Input
-                        placeholder="Type designation manually"
-                        value={form.designation}
-                        onChange={(e) => setForm(f => ({ ...f, designation: e.target.value }))}
-                        className="mt-2"
-                        required
-                      />
+                      <Input placeholder="Type designation manually" value={form.designation} onChange={(e) => setForm(f => ({ ...f, designation: e.target.value }))} className="mt-2" required />
                     )}
                   </div>
 
                   <div>
                     <Label>Email address</Label>
-                    <Input
-                      type="email"
-                      placeholder="admin@velciti.com"
-                      value={form.email}
-                      onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-                      className="mt-1"
-                      required
-                    />
+                    <Input type="email" placeholder="admin@velciti.com" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} className="mt-1" required />
                   </div>
 
                   <div>
                     <Label>Phone number</Label>
-                    <Input
-                      placeholder="9876543210"
-                      value={form.phone}
-                      onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
-                      className="mt-1"
-                      required
-                    />
+                    <Input placeholder="9876543210" value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} className="mt-1" required />
                   </div>
 
                   <div>
                     <Label>Temporary password</Label>
-                    <Input
-                      type="password"
-                      placeholder="Min 8 characters"
-                      value={form.password}
-                      onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-                      className="mt-1"
-                      required
-                    />
+                    <Input type="password" placeholder="Min 8 characters" value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} className="mt-1" required />
                   </div>
 
                   <div>
                     <Label>Role</Label>
-                    <select
-                      value={form.role}
-                      onChange={(e) => setForm(f => ({ ...f, role: e.target.value as 'admin' | 'super_admin' }))}
-                      className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
+                    <select value={form.role} onChange={(e) => setForm(f => ({ ...f, role: e.target.value as 'admin' | 'super_admin' }))}
+                      className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                       <option value="admin">Admin</option>
                       <option value="super_admin">Super Admin</option>
                     </select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Super Admin has full system access including creating other admins
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Super Admin has full system access</p>
                   </div>
 
                   <div className="sm:col-span-2 flex gap-3 pt-2">
-                    <Button
-                      type="submit"
-                      className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90"
-                      disabled={creating}
-                    >
+                    <Button type="submit" className="bg-secondary text-secondary-foreground font-bold hover:bg-secondary/90" disabled={creating}>
                       {creating ? 'Creating...' : `Create ${form.role === 'super_admin' ? 'Super Admin' : 'Admin'} account`}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
@@ -398,6 +476,7 @@ export default function SuperAdminPage() {
                         <th className="text-left p-4 font-bold text-primary hidden md:table-cell">Phone</th>
                         <th className="text-left p-4 font-bold text-primary">Role</th>
                         <th className="text-left p-4 font-bold text-primary">Active</th>
+                        <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Password</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -413,27 +492,29 @@ export default function SuperAdminPage() {
                           <td className="p-4 hidden sm:table-cell text-muted-foreground">{admin.email}</td>
                           <td className="p-4 hidden md:table-cell text-muted-foreground">{admin.phone}</td>
                           <td className="p-4">
-                            <select
-                              value={admin.role}
-                              onChange={(e) => changeRole(admin.id, e.target.value as 'admin' | 'super_admin')}
-                              className={`text-xs border rounded px-2 py-1 bg-background font-medium ${
-                                admin.role === 'super_admin' ? 'border-purple-300 text-purple-700' : 'border-blue-300 text-blue-700'
-                              }`}
-                            >
+                            <select value={admin.role} onChange={(e) => changeRole(admin.id, e.target.value as 'admin' | 'super_admin')}
+                              className={`text-xs border rounded px-2 py-1 bg-background font-medium ${admin.role === 'super_admin' ? 'border-purple-300 text-purple-700' : 'border-blue-300 text-blue-700'}`}>
                               <option value="admin">Admin</option>
                               <option value="super_admin">Super Admin</option>
                             </select>
                           </td>
                           <td className="p-4">
-                            <Switch
-                              checked={admin.is_active}
-                              onCheckedChange={() => toggleActive(admin.id, admin.is_active, 'admin')}
-                            />
+                            <Switch checked={admin.is_active} onCheckedChange={() => toggleActive(admin.id, admin.is_active, 'admin')} />
+                          </td>
+                          <td className="p-4 hidden lg:table-cell">
+                            <div className="flex flex-col gap-1">
+                              <button onClick={() => sendResetEmail(admin.email, admin.full_name)} className="text-xs text-blue-600 hover:underline text-left whitespace-nowrap">
+                                📧 Send reset email
+                              </button>
+                              <button onClick={() => setPasswordDirectly(admin.id, admin.full_name)} className="text-xs text-orange-600 hover:underline text-left whitespace-nowrap">
+                                🔑 Set password
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                       {admins.length === 0 && (
-                        <tr><td colSpan={5} className="p-12 text-center text-muted-foreground">No admin accounts found.</td></tr>
+                        <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No admin accounts found.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -461,6 +542,7 @@ export default function SuperAdminPage() {
                         <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Phone</th>
                         <th className="text-left p-4 font-bold text-primary">Tracking</th>
                         <th className="text-left p-4 font-bold text-primary">Account</th>
+                        <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">Password</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -468,10 +550,7 @@ export default function SuperAdminPage() {
                         <tr key={s.id} className={`border-b hover:bg-muted/20 ${!s.is_active ? 'opacity-50' : ''}`}>
                           <td className="p-4 font-medium">
                             <div className="flex items-center gap-2">
-                              {s.is_active
-                                ? <UserCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                : <UserX className="h-4 w-4 text-destructive flex-shrink-0" />
-                              }
+                              {s.is_active ? <UserCheck className="h-4 w-4 text-green-500 flex-shrink-0" /> : <UserX className="h-4 w-4 text-destructive flex-shrink-0" />}
                               {s.full_name}
                             </div>
                             {!s.is_active && <span className="text-xs text-destructive ml-6">Deactivated</span>}
@@ -485,15 +564,17 @@ export default function SuperAdminPage() {
                             </span>
                           </td>
                           <td className="p-4">
-                            <Switch
-                              checked={s.is_active}
-                              onCheckedChange={() => toggleActive(s.id, s.is_active, 'supervisor')}
-                            />
+                            <Switch checked={s.is_active} onCheckedChange={() => toggleActive(s.id, s.is_active, 'supervisor')} />
+                          </td>
+                          <td className="p-4 hidden lg:table-cell">
+                            <button onClick={() => sendResetEmail(s.email, s.full_name)} className="text-xs text-blue-600 hover:underline whitespace-nowrap">
+                              📧 Send reset email
+                            </button>
                           </td>
                         </tr>
                       ))}
                       {supervisors.length === 0 && (
-                        <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No supervisors found.</td></tr>
+                        <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">No supervisors found.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -556,6 +637,61 @@ export default function SuperAdminPage() {
           </div>
         )}
 
+        {/* ACTIVITY LOGS TAB */}
+        {activeTab === 'logs' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-black text-primary">Activity Logs</h2>
+              <Button variant="outline" onClick={fetchLogs} disabled={logsLoading} className="gap-2">
+                <RefreshCw className={`h-4 w-4 ${logsLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+
+            {logsLoading ? (
+              <div className="space-y-3">{[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}</div>
+            ) : logs.length === 0 ? (
+              <div className="bg-card border rounded-xl p-12 text-center text-muted-foreground">
+                No activity logs yet. Actions like creating admins, changing roles, and activating/deactivating accounts will appear here.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {logs.map((log) => (
+                  <div key={log.id} className="bg-card border rounded-xl p-4 flex items-start gap-4">
+                    <div className="text-xl flex-shrink-0">{getActionIcon(log.action)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-primary text-sm">{log.actor_name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          log.actor_role === 'super_admin' ? 'bg-purple-100 text-purple-700' :
+                          log.actor_role === 'admin' ? 'bg-blue-100 text-blue-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {log.actor_role === 'super_admin' ? 'Super Admin' : log.actor_role === 'admin' ? 'Admin' : 'Supervisor'}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getActionColor(log.action)}`}>
+                          {log.action}
+                        </span>
+                        {log.target_name && (
+                          <span className="text-sm text-muted-foreground">→ <span className="font-medium text-foreground">{log.target_name}</span></span>
+                        )}
+                      </div>
+                      {log.details && (
+                        <p className="text-xs text-muted-foreground mt-1">{log.details}</p>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                      {new Date(log.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      <br />
+                      {new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* SYSTEM SETTINGS TAB */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
@@ -582,7 +718,7 @@ export default function SuperAdminPage() {
               <h2 className="font-bold text-primary mb-4">Role Permissions</h2>
               <div className="space-y-3 text-sm">
                 {[
-                  { role: 'Super Admin', color: 'bg-purple-100 text-purple-700', perms: 'Full system access — create admins/super admins, manage all users, view all samples, system settings, override permissions' },
+                  { role: 'Super Admin', color: 'bg-purple-100 text-purple-700', perms: 'Full system access — create admins/super admins, manage all users, view all samples, activity logs, system settings, override permissions' },
                   { role: 'Admin', color: 'bg-blue-100 text-blue-700', perms: 'Create supervisors, manage samples, update status, view reports, settings' },
                   { role: 'Supervisor', color: 'bg-green-100 text-green-700', perms: 'Submit samples, view own samples, update courier details, add remarks' },
                 ].map((item) => (
