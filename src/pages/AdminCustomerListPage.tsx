@@ -179,7 +179,7 @@ export default function AdminCustomerListPage() {
                 <Label htmlFor="full_name">Full name</Label>
                 <Input
                   id="full_name"
-                  placeholder="Rajesh Kumar"
+                  placeholder="ArunKumar"
                   value={form.full_name}
                   onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
                   className="mt-1"
@@ -226,7 +226,7 @@ export default function AdminCustomerListPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="rajesh@velciti.com"
+                  placeholder="arun@velciti.com"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="mt-1"
