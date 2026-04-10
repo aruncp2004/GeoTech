@@ -37,7 +37,7 @@ export function useSamples() {
       .from("samples")
       .select("*")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("fetchSampleById error:", error);
@@ -47,27 +47,24 @@ export function useSamples() {
   };
 
   const createSample = useMutation({
-    mutationFn: async (
-      newSample: Omit<
-        Sample,
-        "id" | "created_at" | "customer_name" | "customer_company"
-      >,
-    ) => {
-      const { data, error } = await supabase
-        .from("samples")
-        .insert(newSample)
-        .select()
-        .single();
-      if (error) {
-        console.error("createSample error:", error);
-        throw error;
-      }
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["samples"] });
-    },
-  });
+  mutationFn: async (
+    newSample: Omit<Sample, "id" | "created_at" | "customer_name" | "customer_company">,
+  ) => {
+    const { data, error } = await supabase
+      .from("samples")
+      .insert(newSample)
+      .select()
+      .single();
+    if (error) {
+      console.error("createSample error:", error);
+      throw error;
+    }
+    return data;
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["samples"] });
+  },
+});
 
   const updateSample = useMutation({
     mutationFn: async ({
