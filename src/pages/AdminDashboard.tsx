@@ -21,20 +21,19 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filtered = samples.filter((s) => {
-  const supervisorName = s.profiles?.full_name || s.customer_name || ''
-  const matchSearch =
-    !search ||
-    s.sample_id.toLowerCase().includes(search.toLowerCase()) ||
-    supervisorName.toLowerCase().includes(search.toLowerCase()) ||
-    (s.test_required?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
-    (s.courier_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
-    (s.awb_number?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
-    (s.project_name?.toLowerCase() ?? '').includes(search.toLowerCase()) ||
-    (s.sample_type?.toLowerCase() ?? '').includes(search.toLowerCase())
-  const matchStatus =
-    statusFilter === 'all' || s.status === statusFilter
-  return matchSearch && matchStatus
-})
+    const supervisorName = s.profiles?.full_name || s.customer_name || "";
+    const matchSearch =
+      !search ||
+      s.sample_id.toLowerCase().includes(search.toLowerCase()) ||
+      supervisorName.toLowerCase().includes(search.toLowerCase()) ||
+      (s.test_required?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
+      (s.courier_name?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
+      (s.awb_number?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
+      (s.project_name?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
+      (s.sample_type?.toLowerCase() ?? "").includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || s.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
 
   const formatDate = (dateStr: string | undefined | null) => {
     if (!dateStr) return "—";
@@ -199,7 +198,7 @@ export default function AdminDashboard() {
                         </Link>
                       </td>
                       <td className="p-4 hidden sm:table-cell font-medium">
-                        {s.customer_name || "—"}
+                        {s.profiles?.full_name || s.customer_name || "—"}
                       </td>
                       <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">
                         {s.sample_type}
