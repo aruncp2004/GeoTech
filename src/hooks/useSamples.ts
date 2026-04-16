@@ -33,11 +33,11 @@ export function useSamples() {
   });
 
   const fetchSampleById = async (id: string) => {
-    const { data, error } = await supabase
-      .from("samples")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+  const { data, error } = await supabase
+    .from("samples")
+    .select("*, profiles(full_name, company)")
+    .eq("id", id)
+    .maybeSingle()
 
     if (error) {
       console.error("fetchSampleById error:", error);

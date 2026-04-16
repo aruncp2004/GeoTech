@@ -16,15 +16,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { toast } from "sonner";
 import type { Sample, SampleStatus, SampleCondition } from "@/types";
 import { STATUS_ORDER } from "@/types";
 
+interface DetailRow {
+  label: string;
+  value: string;
+  green?: boolean;
+}
+
+interface SampleWithProfile extends Sample {
+  profiles?: {
+    full_name: string;
+    company: string;
+  };
+}
+
+function parseDescription(desc: string): {
+  rows: string[];
+  attachment: string | null;
+} {
+  if (!desc) return { rows: [], attachment: null };
+  const lines = desc.split("\n").filter(Boolean);
+  const rows: string[] = [];
+  let attachment: string | null = null;
+  for (const line of lines) {
+    if (line.startsWith("ATTACHMENT:")) {
+      attachment = line.replace("ATTACHMENT:", "").trim();
+    } else {
+      rows.push(line);
+    }
+  }
+  return { rows, attachment };
+}
+
 export default function AdminParcelDetailPage() {
   const { id } = useParams();
   const { fetchSampleById, updateSample } = useSamples();
-  const [sample, setSample] = useState<Sample | null>(null);
+  const [sample, setSample] = useState<SampleWithProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<SampleStatus>("booked");
   const [condition, setCondition] = useState<string>("");
@@ -35,12 +66,11 @@ export default function AdminParcelDetailPage() {
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-
     const load = async () => {
       try {
         const data = await fetchSampleById(id);
         if (!cancelled) {
-          setSample(data);
+          setSample(data as SampleWithProfile);
           setStatus(data.status);
           setCondition(data.condition || "");
           setNotes(data.notes || "");
@@ -52,7 +82,6 @@ export default function AdminParcelDetailPage() {
         if (!cancelled) setLoading(false);
       }
     };
-
     load();
     return () => {
       cancelled = true;
@@ -132,6 +161,54 @@ export default function AdminParcelDetailPage() {
     );
   }
 
+  const supervisorName =
+    sample.profiles?.full_name || sample.customer_name || "—";
+  const { rows: descRows, attachment } = parseDescription(
+    sample.sample_description || "",
+  );
+
+  const detailRows: DetailRow[] = [
+    { label: "Supervisor", value: supervisorName },
+    { label: "Sample type", value: sample.sample_type || "—" },
+    { label: "Project name", value: sample.project_name || "—" },
+    { label: "Site location", value: sample.site_location || "—" },
+    { label: "Test required", value: sample.test_required || "—" },
+    { label: "No. of parcels", value: String(sample.num_parcels) },
+    { label: "Total weight", value: `${sample.weight_kg} kg` },
+    { label: "Collection address", value: sample.pickup_address || "—" },
+    { label: "Date of sending", value: sample.pickup_date || "—" },
+    { label: "Collection time", value: sample.pickup_time || "—" },
+    { label: "Courier", value: sample.courier_name || "—" },
+    {
+      label: "Courier tracking number",
+      value: sample.awb_number || "Not assigned",
+    },
+    {
+      label: "Submitted on",
+      value: new Date(sample.created_at).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    },
+    ...(sample.received_at
+      ? [
+          {
+            label: "Received on",
+            value: new Date(sample.received_at).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            green: true,
+          },
+        ]
+      : []),
+    ...(sample.condition
+      ? [{ label: "Condition on receipt", value: sample.condition }]
+      : []),
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -159,66 +236,49 @@ export default function AdminParcelDetailPage() {
         {/* Details */}
         <div className="bg-card border rounded-xl p-6 mb-6">
           <h2 className="font-bold text-primary mb-4">Sample details</h2>
-          <div className="grid sm:grid-cols-2 gap-3 text-sm">
-            {[
-              { label: "Supervisor", value: sample.customer_name },
-              { label: "Sample type", value: sample.sample_type },
-              { label: "Project name", value: sample.project_name || "—" },
-              { label: "Site location", value: sample.site_location || "—" },
-              {
-                label: "Sample description",
-                value: sample.sample_description || "—",
-              },
-              { label: "Test required", value: sample.test_required },
-              { label: "No. of parcels", value: sample.num_parcels },
-              { label: "Weight", value: `${sample.weight_kg} kg` },
-              { label: "Pickup address", value: sample.pickup_address },
-              { label: "Dispatch date", value: sample.pickup_date },
-              { label: "Pickup time", value: sample.pickup_time },
-              { label: "Courier", value: sample.courier_name },
-              {
-                label: "AWB number",
-                value: sample.awb_number || "Not assigned",
-              },
-              {
-                label: "Submitted on",
-                value: new Date(sample.created_at).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                }),
-              },
-              ...(sample.received_at
-                ? [
-                    {
-                      label: "Received on",
-                      value: new Date(sample.received_at).toLocaleDateString(
-                        "en-IN",
-                        {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        },
-                      ),
-                    },
-                  ]
-                : []),
-              ...(sample.condition
-                ? [{ label: "Condition on receipt", value: sample.condition }]
-                : []),
-            ].map((item) => (
+          <div className="grid sm:grid-cols-2 gap-x-8 gap-y-0 text-sm">
+            {detailRows.map((item) => (
               <div
                 key={item.label}
-                className="flex justify-between py-2 border-b last:border-0"
+                className="flex justify-between py-2.5 border-b gap-4"
               >
-                <span className="text-muted-foreground">{item.label}</span>
+                <span className="text-muted-foreground flex-shrink-0">
+                  {item.label}
+                </span>
                 <span
-                  className={`font-semibold capitalize text-right ${item.label === "Received on" ? "text-green-600" : ""}`}
+                  className={`font-semibold text-right break-all ${item.green ? "text-green-600" : "text-primary"}`}
                 >
-                  {String(item.value || "—")}
+                  {item.value}
                 </span>
               </div>
             ))}
+
+            {/* Sample description */}
+            {(descRows.length > 0 || attachment) && (
+              <div className="py-2.5">
+                <p className="text-muted-foreground mb-2">Sample description</p>
+                {descRows.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-1">
+                    {descRows.map((line, i) => (
+                      <p key={i} className="text-sm font-medium text-primary">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {attachment && (
+                  <a
+                    href={attachment}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 mt-2 text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    View attached document
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -254,7 +314,7 @@ export default function AdminParcelDetailPage() {
                 </Select>
               </div>
               <div>
-                <Label>Condition check</Label>
+                <Label>Condition on arrival</Label>
                 <Select value={condition} onValueChange={setCondition}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select condition" />
@@ -268,10 +328,10 @@ export default function AdminParcelDetailPage() {
             </div>
 
             <div>
-              <Label htmlFor="awb">AWB number</Label>
+              <Label htmlFor="awb">Courier tracking number</Label>
               <Input
                 id="awb"
-                placeholder="Enter AWB number"
+                placeholder="Enter tracking number"
                 value={awb}
                 onChange={(e) => setAwb(e.target.value)}
                 className="mt-1"
