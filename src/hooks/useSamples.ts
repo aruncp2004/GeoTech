@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/authStore";
-import type { Sample, SampleStatus, SampleCondition } from "@/types";
+import type { Sample, SampleStatus, SampleCondition,ParcelDetail } from "@/types";
 
 export function useSamples() {
   const user = useAuthStore((s) => s.user);

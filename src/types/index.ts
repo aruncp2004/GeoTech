@@ -5,7 +5,16 @@ export type SampleCondition = 'intact' | 'damaged';
 export type SampleType = 'soil' | 'rock' | 'water' | 'concrete' | 'aggregate' | 'other' | string;
 
 export type UserRole = 'super_admin' | 'admin' | 'customer';
-
+export interface ParcelDetail {
+  parcel_no: number;
+  bore_hole: string;
+  depth: string;
+  method: string;
+  sampler: string;
+  soil_desc: string;
+  condition: string;
+  notes: string;
+}
 export interface UserProfile {
   id: string;
   full_name: string;

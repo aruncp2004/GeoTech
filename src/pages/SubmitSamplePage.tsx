@@ -1,35 +1,50 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useSamples } from "@/hooks/useSamples";
 import { generateSampleId } from "@/lib/sampleId";
+import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Package, ArrowLeft, CheckCircle2, MapPin, Loader2 } from "lucide-react";
+import {
+  Package, ArrowLeft, CheckCircle2, MapPin,
+  Loader2, FileText, Upload, X, Plus, Trash2
+} from "lucide-react";
 import { toast } from "sonner";
 import type { SampleType } from "@/types";
 
 type Step = "form" | "done";
 
+interface DescRow {
+  id: number
+  value: string
+}
+
 export default function SubmitSamplePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { createSample } = useSamples();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("form");
   const [generatedId, setGeneratedId] = useState("");
   const [loading, setLoading] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const [rows, setRows] = useState<DescRow[]>([
+    { id: 1, value: '' }
+  ]);
 
   const [form, setForm] = useState({
     sample_type: "" as SampleType | "",
     test_required: "",
     project_name: "",
     site_location: "",
-    sample_description: "",
     num_parcels: "1",
     courier_name: "",
     awb_number: "",
@@ -41,14 +56,38 @@ export default function SubmitSamplePage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const addRow = () => {
+    setRows(prev => [...prev, { id: Date.now(), value: '' }]);
+  };
+
+  const removeRow = (id: number) => {
+    if (rows.length === 1) {
+      toast.error("At least one row is required");
+      return;
+    }
+    setRows(prev => prev.filter(r => r.id !== id));
+  };
+
+  const updateRow = (id: number, value: string) => {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, value } : r));
+  };
+
+  const buildDescription = () => {
+    return rows
+      .filter(r => r.value.trim())
+      .map((r, i) => `${i + 1}) ${r.value.trim()}`)
+      .join('\n');
+  };
+
   const validate = () => {
     const newErrors: Record<string, string> = {};
     if (!form.project_name) newErrors.project_name = "Project name is required";
     if (!form.site_location) newErrors.site_location = "Site location is required";
-    if (!form.sample_description) newErrors.sample_description = "Sample description is required";
     if (!form.num_parcels || parseInt(form.num_parcels) < 1)
       newErrors.num_parcels = "At least 1 parcel";
     if (!form.pickup_date) newErrors.pickup_date = "Dispatch date is required";
+    const hasData = rows.some(r => r.value.trim());
+    if (!hasData) newErrors.rows = "Please fill at least one sample detail";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -84,27 +123,59 @@ export default function SubmitSamplePage() {
             toast.success("Location detected — edit if needed");
           } else {
             setForm((f) => ({ ...f, site_location: `${lat}, ${lng}` }));
-            toast.success("Coordinates captured — edit if needed");
           }
         } catch {
           setForm((f) => ({ ...f, site_location: `${lat}, ${lng}` }));
-          toast.success("Coordinates captured");
         } finally {
           setGpsLoading(false);
         }
       },
       (err) => {
         setGpsLoading(false);
-        if (err.code === 1) {
-          toast.error("Location permission denied. Please allow location access and try again.");
-        } else if (err.code === 2) {
-          toast.error("Location unavailable. Please enter manually.");
-        } else {
-          toast.error("Location timed out. Please enter manually.");
-        }
+        if (err.code === 1) toast.error("Location permission denied.");
+        else if (err.code === 2) toast.error("Location unavailable. Enter manually.");
+        else toast.error("Location timed out. Enter manually.");
       },
       { timeout: 15000, enableHighAccuracy: true }
     );
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Max 20MB — accept all file types
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File size must be less than 20MB");
+      return;
+    }
+
+    setUploadedFile(file);
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${user?.id}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("sample-docs")
+        .upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage
+        .from("sample-docs")
+        .getPublicUrl(fileName);
+      setUploadedFileUrl(urlData.publicUrl);
+      toast.success("File uploaded successfully");
+    } catch {
+      toast.error("Failed to upload file. Please try again.");
+      setUploadedFile(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = () => {
+    setUploadedFile(null);
+    setUploadedFileUrl("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,6 +185,9 @@ export default function SubmitSamplePage() {
     setLoading(true);
     try {
       const id = await generateSampleId();
+      const description = buildDescription() +
+        (uploadedFileUrl ? `\nATTACHMENT: ${uploadedFileUrl}` : '');
+
       await createSample.mutateAsync({
         sample_id: id,
         customer_id: user.id,
@@ -121,7 +195,7 @@ export default function SubmitSamplePage() {
         test_required: form.test_required || "Not specified",
         project_name: form.project_name,
         site_location: form.site_location,
-        sample_description: form.sample_description,
+        sample_description: description,
         num_parcels: parseInt(form.num_parcels),
         weight_kg: parseFloat(form.weight_kg) || 0,
         pickup_address: `${form.site_location} — ${user.address}`,
@@ -144,12 +218,14 @@ export default function SubmitSamplePage() {
   const resetForm = () => {
     setStep("form");
     setGeneratedId("");
+    setUploadedFile(null);
+    setUploadedFileUrl("");
+    setRows([{ id: 1, value: '' }]);
     setForm({
       sample_type: "",
       test_required: "",
       project_name: "",
       site_location: "",
-      sample_description: "",
       num_parcels: "1",
       courier_name: "",
       awb_number: "",
@@ -171,20 +247,12 @@ export default function SubmitSamplePage() {
               <Package className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-2xl font-black text-primary mb-1">Sample Created!</h1>
-            <p className="text-muted-foreground text-sm">
-              Write this ID on your parcel before dispatching
-            </p>
+            <p className="text-muted-foreground text-sm">Write this ID on your parcel before dispatching</p>
           </div>
-
           <div className="bg-primary rounded-xl p-6 text-center mb-6">
-            <p className="text-xs text-primary-foreground/50 uppercase tracking-widest font-bold mb-2">
-              Your Sample ID
-            </p>
-            <div className="text-5xl font-black text-secondary font-mono tracking-wider">
-              {generatedId}
-            </div>
+            <p className="text-xs text-primary-foreground/50 uppercase tracking-widest font-bold mb-2">Your Sample ID</p>
+            <div className="text-5xl font-black text-secondary font-mono tracking-wider">{generatedId}</div>
           </div>
-
           <div className="bg-card border rounded-xl p-6 mb-6">
             <h2 className="font-bold text-primary mb-4">What to do next</h2>
             <div className="space-y-4">
@@ -206,14 +274,9 @@ export default function SubmitSamplePage() {
               ))}
             </div>
           </div>
-
           <div className="flex gap-3">
-            <Button variant="secondary" className="flex-1 font-bold" onClick={() => navigate("/dashboard")}>
-              Go to dashboard
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={resetForm}>
-              Submit another
-            </Button>
+            <Button variant="secondary" className="flex-1 font-bold" onClick={() => navigate("/dashboard")}>Go to dashboard</Button>
+            <Button variant="outline" className="flex-1" onClick={resetForm}>Submit another</Button>
           </div>
         </div>
       </div>
@@ -238,10 +301,8 @@ export default function SubmitSamplePage() {
           {/* Sample information */}
           <div className="bg-card border rounded-xl p-6 space-y-4">
             <h2 className="font-bold text-primary">Sample information</h2>
-
             <div className="grid sm:grid-cols-2 gap-4">
 
-              {/* Sample type — optional, no * */}
               <div>
                 <Label>Sample type (optional)</Label>
                 <select
@@ -259,162 +320,181 @@ export default function SubmitSamplePage() {
                 </select>
               </div>
 
-              {/* Test required — optional */}
               <div>
-                <Label htmlFor="test">
-                  Test required <span className="text-muted-foreground text-xs">(optional)</span>
-                </Label>
-                <Input
-                  id="test"
-                  placeholder="e.g. SPT, Atterberg Limits, CBR"
-                  value={form.test_required}
-                  onChange={(e) => setForm((f) => ({ ...f, test_required: e.target.value }))}
-                  className="mt-1"
-                />
+                <Label htmlFor="test">Test required <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input id="test" placeholder="e.g. SPT, Atterberg Limits, CBR" value={form.test_required} onChange={(e) => setForm((f) => ({ ...f, test_required: e.target.value }))} className="mt-1" />
               </div>
 
-              {/* Project name — required */}
               <div>
-                <Label htmlFor="project">
-                  Project name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="project"
-                  placeholder="e.g. NH-44 Highway Project"
-                  value={form.project_name}
-                  onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}
-                  className="mt-1"
-                />
+                <Label htmlFor="project">Project name <span className="text-destructive">*</span></Label>
+                <Input id="project" placeholder="e.g. NH-44 Highway Project" value={form.project_name} onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))} className="mt-1" />
                 {errors.project_name && <p className="text-destructive text-xs mt-1">{errors.project_name}</p>}
               </div>
 
-              {/* Site location — required */}
               <div>
-                <Label htmlFor="site">
-                  Site location <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="site">Site location <span className="text-destructive">*</span></Label>
                 <div className="flex gap-2 mt-1">
-                  <Input
-                    id="site"
-                    placeholder="e.g. Km 142, Trichy Road or use GPS"
-                    value={form.site_location}
-                    onChange={(e) => setForm((f) => ({ ...f, site_location: e.target.value }))}
-                    className="flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleGPS}
-                    disabled={gpsLoading}
-                    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors whitespace-nowrap flex items-center gap-1 disabled:opacity-50"
-                  >
+                  <Input id="site" placeholder="e.g. Km 142, Trichy Road" value={form.site_location} onChange={(e) => setForm((f) => ({ ...f, site_location: e.target.value }))} className="flex-1" />
+                  <button type="button" onClick={handleGPS} disabled={gpsLoading}
+                    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors whitespace-nowrap flex items-center gap-1 disabled:opacity-50">
                     {gpsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
                     {gpsLoading ? "..." : "GPS"}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Click GPS to auto-detect or type manually — always editable
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Click GPS to auto-detect or type manually</p>
                 {errors.site_location && <p className="text-destructive text-xs mt-1">{errors.site_location}</p>}
               </div>
+            </div>
+          </div>
 
-              {/* Sample description — required, full width, big textarea */}
-              <div className="sm:col-span-2">
-                <Label htmlFor="desc">
-                  Sample description <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="desc"
-                  placeholder="e.g. Bore hole #3 at 6m depth, undisturbed sample collected using thin-walled sampler..."
-                  value={form.sample_description}
-                  onChange={(e) => setForm((f) => ({ ...f, sample_description: e.target.value }))}
-                  className="mt-1 min-h-[100px] resize-y"
-                />
-                {errors.sample_description && <p className="text-destructive text-xs mt-1">{errors.sample_description}</p>}
-              </div>
+          {/* Sample description — dynamic rows + file upload */}
+          <div className="bg-card border rounded-xl p-6 space-y-4">
+            <div>
+              <h2 className="font-bold text-primary">Sample description <span className="text-destructive">*</span></h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Add each detail as a separate row — e.g. BH No, Soil type, Depth, etc.
+              </p>
+            </div>
+
+            {errors.rows && <p className="text-destructive text-xs">{errors.rows}</p>}
+
+            {/* Dynamic rows */}
+            <div className="space-y-2">
+              {rows.map((row, index) => (
+                <div key={row.id} className="flex items-center gap-2">
+                  {/* Row number */}
+                  <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  {/* Input */}
+                  <Input
+                    value={row.value}
+                    onChange={(e) => updateRow(row.id, e.target.value)}
+                    placeholder={
+                      index === 0 ? "e.g. BH No: BH-01" :
+                      index === 1 ? "e.g. Soil type: Sandy clay" :
+                      index === 2 ? "e.g. Depth: 3.0m to 4.5m" :
+                      "Add more details..."
+                    }
+                    className="flex-1 h-9"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addRow();
+                      }
+                    }}
+                  />
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.id)}
+                    className="p-1.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add row button */}
+            <button
+              type="button"
+              onClick={addRow}
+              className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add another row
+            </button>
+
+            <p className="text-xs text-muted-foreground">
+              💡 Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">Enter</kbd> in any row to add a new one
+            </p>
+
+            {/* File upload */}
+            <div className="border-t pt-4">
+              <Label className="text-sm font-medium">Attach file (optional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Upload any supporting document — PDF, image, Excel, Word etc. (max 20MB)
+              </p>
+
+              {!uploadedFile ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-sm font-medium text-primary">Click to upload</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Any file type — max 20MB</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="border rounded-xl p-3 bg-muted/30">
+                  {uploading ? (
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Uploading...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-primary truncate max-w-[250px]">{uploadedFile.name}</p>
+                          <p className="text-xs text-green-600 font-medium">✓ Uploaded successfully</p>
+                        </div>
+                      </div>
+                      <button type="button" onClick={removeFile} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors">
+                        <X className="h-4 w-4 text-destructive" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Parcel & dispatch */}
           <div className="bg-card border rounded-xl p-6 space-y-4">
             <h2 className="font-bold text-primary">Parcel & dispatch</h2>
-
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="parcels">
-                  Number of parcels <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="parcels"
-                  type="number"
-                  min="1"
-                  value={form.num_parcels}
-                  onChange={(e) => setForm((f) => ({ ...f, num_parcels: e.target.value }))}
-                  className="mt-1"
-                />
+                <Label htmlFor="parcels">Number of parcels <span className="text-destructive">*</span></Label>
+                <Input id="parcels" type="number" min="1" value={form.num_parcels} onChange={(e) => setForm((f) => ({ ...f, num_parcels: e.target.value }))} className="mt-1" />
                 {errors.num_parcels && <p className="text-destructive text-xs mt-1">{errors.num_parcels}</p>}
               </div>
 
               <div>
-                <Label htmlFor="weight">Weight in kg (optional)</Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  placeholder="0.0"
-                  value={form.weight_kg}
-                  onChange={(e) => setForm((f) => ({ ...f, weight_kg: e.target.value }))}
-                  className="mt-1"
-                />
+                <Label htmlFor="weight">Total weight IN Kg(optional)</Label>
+                <Input id="weight" type="number" step="0.1" min="0" placeholder="0.0" value={form.weight_kg} onChange={(e) => setForm((f) => ({ ...f, weight_kg: e.target.value }))} className="mt-1" />
               </div>
 
               <div>
-                <Label htmlFor="dispatch">
-                  Dispatch date <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="dispatch"
-                  type="date"
-                  value={form.pickup_date}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))}
-                  className="mt-1"
-                />
+                <Label htmlFor="dispatch">Date of sending <span className="text-destructive">*</span></Label>                <Input id="dispatch" type="date" value={form.pickup_date} min={new Date().toISOString().split("T")[0]} onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))} className="mt-1" />
                 {errors.pickup_date && <p className="text-destructive text-xs mt-1">{errors.pickup_date}</p>}
               </div>
 
               <div>
                 <Label htmlFor="courier">Courier name (optional)</Label>
-                <Input
-                  id="courier"
-                  placeholder="e.g. Blue Dart, DTDC, Speed Post..."
-                  value={form.courier_name}
-                  onChange={(e) => setForm((f) => ({ ...f, courier_name: e.target.value }))}
-                  className="mt-1"
-                />
+                <Input id="courier" placeholder="e.g. Blue Dart, DTDC..." value={form.courier_name} onChange={(e) => setForm((f) => ({ ...f, courier_name: e.target.value }))} className="mt-1" />
                 <p className="text-xs text-muted-foreground mt-1">You can update this after dispatch</p>
               </div>
 
               <div>
-                <Label htmlFor="tracking">Tracking / AWB number (optional)</Label>
-                <Input
-                  id="tracking"
-                  placeholder="Enter after handing over to courier"
-                  value={form.awb_number}
-                  onChange={(e) => setForm((f) => ({ ...f, awb_number: e.target.value }))}
-                  className="mt-1"
-                />
+                <Label htmlFor="tracking">Courier tracking number/ AWB number (optional)</Label>
+                <Input id="tracking" placeholder="Enter after handing over to courier" value={form.awb_number} onChange={(e) => setForm((f) => ({ ...f, awb_number: e.target.value }))} className="mt-1" />
               </div>
 
               <div>
                 <Label htmlFor="remarks">Remarks (optional)</Label>
-                <Input
-                  id="remarks"
-                  placeholder="Any special handling notes"
-                  value={form.remarks}
-                  onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))}
-                  className="mt-1"
-                />
+                <Input id="remarks" placeholder="Any special handling notes" value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} className="mt-1" />
               </div>
             </div>
           </div>
@@ -427,7 +507,7 @@ export default function SubmitSamplePage() {
             type="submit"
             variant="secondary"
             className="w-full font-bold h-12 text-base"
-            disabled={loading}
+            disabled={loading || uploading}
           >
             {loading ? "Generating…" : "Generate Sample ID & Submit →"}
           </Button>
