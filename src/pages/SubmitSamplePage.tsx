@@ -372,8 +372,6 @@ export default function SubmitSamplePage() {
                     onChange={(e) => updateRow(row.id, e.target.value)}
                     placeholder={
                       index === 0 ? "e.g. BH No: BH-01" :
-                      index === 1 ? "e.g. Soil type: Sandy clay" :
-                      index === 2 ? "e.g. Depth: 3.0m to 4.5m" :
                       "Add more details..."
                     }
                     className="flex-1 h-9"
@@ -488,7 +486,7 @@ export default function SubmitSamplePage() {
               </div>
 
               <div>
-                <Label htmlFor="tracking">Courier tracking number/ AWB number (optional)</Label>
+                <Label htmlFor="tracking">Courier tracking number/ AWB number </Label>
                 <Input id="tracking" placeholder="Enter after handing over to courier" value={form.awb_number} onChange={(e) => setForm((f) => ({ ...f, awb_number: e.target.value }))} className="mt-1" />
               </div>
 
