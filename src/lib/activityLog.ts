@@ -14,6 +14,7 @@ interface LogActivity {
 export async function logActivity(log: LogActivity): Promise<void> {
   try {
     await supabase.from('activity_logs').insert({
+  created_at: new Date().toISOString(),
       actor_id: log.actor_id,
       actor_name: log.actor_name,
       actor_role: log.actor_role,
