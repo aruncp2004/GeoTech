@@ -179,7 +179,7 @@ export default function AdminParcelDetailPage() {
     { label: "Date of sending", value: sample.pickup_date ? new Date(sample.pickup_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
     { label: "Courier", value: sample.courier_name || "—" },
     {
-      label: "Courier tracking number",
+      label: "Tracking no.",
       value: sample.awb_number || "Not assigned",
     },
     {
