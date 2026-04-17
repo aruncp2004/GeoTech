@@ -83,16 +83,17 @@ export function useSamples() {
         courier_name: string;
         received_at: string;
         pickup_date: string;
+        dispatched_at: string;
+        at_courier_at: string;
+        in_transit_at: string;
       }>;
     }) => {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("samples")
         .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+        .eq("id", id);
       if (error) throw error;
-      return data;
+      return { id, ...updates };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["samples"] });

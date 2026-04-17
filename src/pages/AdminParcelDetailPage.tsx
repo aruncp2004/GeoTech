@@ -89,48 +89,54 @@ export default function AdminParcelDetailPage() {
   }, [id, fetchSampleById]);
 
   const handleUpdate = async () => {
-    if (!id) return;
-    setSaving(true);
-    try {
-      await updateSample.mutateAsync({
-        id,
-        updates: {
-          status,
-          condition: (condition as SampleCondition) || undefined,
-          notes,
-          awb_number: awb,
-          ...(status === "received"
-            ? { received_at: new Date().toISOString() }
-            : {}),
-        },
-      });
-      toast.success("Parcel updated successfully");
-    } catch {
-      toast.error("Update failed. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  if (!id) return;
+  setSaving(true);
+  try {
+    await updateSample.mutateAsync({
+      id,
+      updates: {
+        status,
+        condition: (condition as SampleCondition) || undefined,
+        notes,
+        awb_number: awb,
+        ...(status === "received" ? { received_at: new Date().toISOString() } : {}),
+        ...(status === "at_courier" ? { at_courier_at: new Date().toISOString() } : {}),
+      },
+    });
+    // Refresh sample to update timeline and status badge
+    const updated = await fetchSampleById(id);
+    setSample(updated as SampleWithProfile);
+    setStatus(updated.status);
+    toast.success("Parcel updated successfully");
+  } catch {
+    toast.error("Update failed. Please try again.");
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleMarkReceived = async () => {
-    if (!id) return;
-    setSaving(true);
-    try {
-      await updateSample.mutateAsync({
-        id,
-        updates: {
-          status: "received",
-          received_at: new Date().toISOString(),
-        },
-      });
-      setStatus("received");
-      toast.success("Parcel marked as received");
-    } catch {
-      toast.error("Update failed. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  if (!id) return;
+  setSaving(true);
+  try {
+    await updateSample.mutateAsync({
+      id,
+      updates: {
+        status: "received",
+        received_at: new Date().toISOString(),
+      },
+    });
+    // Refresh sample
+    const updated = await fetchSampleById(id);
+    setSample(updated as SampleWithProfile);
+    setStatus("received");
+    toast.success("Parcel marked as received at lab");
+  } catch {
+    toast.error("Update failed. Please try again.");
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (loading) {
     return (
@@ -176,7 +182,16 @@ export default function AdminParcelDetailPage() {
     { label: "No. of parcels", value: String(sample.num_parcels) },
     { label: "Total weight", value: `${sample.weight_kg} kg` },
     { label: "Collection address", value: sample.pickup_address || "—" },
-    { label: "Date of sending", value: sample.pickup_date ? new Date(sample.pickup_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
+    {
+      label: "Date of sending",
+      value: sample.pickup_date
+        ? new Date(sample.pickup_date).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
+        : "—",
+    },
     { label: "Courier", value: sample.courier_name || "—" },
     {
       label: "Tracking no.",
@@ -284,7 +299,13 @@ export default function AdminParcelDetailPage() {
         {/* Timeline */}
         <div className="bg-card border rounded-xl p-6 mb-6">
           <h2 className="font-bold text-primary mb-6">Tracking timeline</h2>
-          <TrackingTimeline currentStatus={status} />
+          <TrackingTimeline
+            currentStatus={status}
+            createdAt={sample.created_at}
+            dispatchedAt={sample.dispatched_at}
+            atCourierAt={sample.at_courier_at}
+            receivedAt={sample.received_at}
+          />
         </div>
 
         {/* Admin controls */}
@@ -363,7 +384,7 @@ export default function AdminParcelDetailPage() {
                   onClick={handleMarkReceived}
                   disabled={saving}
                 >
-                  Mark as received
+                  Mark as received at lab
                 </Button>
               )}
             </div>
