@@ -220,7 +220,7 @@ export default function AdminCustomerListPage() {
                 <Label htmlFor="full_name">Full name</Label>
                 <Input
                   id="full_name"
-                  placeholder="Rajesh Kumar"
+                  placeholder="ArunKumar"
                   value={form.full_name}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, full_name: e.target.value }))
@@ -273,7 +273,7 @@ export default function AdminCustomerListPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="rajesh@velciti.com"
+                  placeholder="arun@velciti.com"
                   value={form.email}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, email: e.target.value }))
@@ -298,7 +298,7 @@ export default function AdminCustomerListPage() {
               </div>
 
               <div>
-                <Label htmlFor="address">Site / office address</Label>
+                <Label htmlFor="address">Site / office address(Optional)</Label>
                 <Input
                   id="address"
                   placeholder="Address"
@@ -307,12 +307,12 @@ export default function AdminCustomerListPage() {
                     setForm((f) => ({ ...f, address: e.target.value }))
                   }
                   className="mt-1"
-                  required
+                  
                 />
               </div>
 
               <div>
-                <Label htmlFor="pincode">Pincode</Label>
+                <Label htmlFor="pincode">Pincode (Optional)</Label>
                 <Input
                   id="pincode"
                   placeholder="600042"
@@ -321,7 +321,7 @@ export default function AdminCustomerListPage() {
                     setForm((f) => ({ ...f, pincode: e.target.value }))
                   }
                   className="mt-1"
-                  required
+                  
                 />
               </div>
 
