@@ -298,7 +298,7 @@ export default function AdminCustomerListPage() {
               </div>
 
               <div>
-                <Label htmlFor="address">Site / office address(Optional)</Label>
+                <Label htmlFor="address">Site / office address (Optional)</Label>
                 <Input
                   id="address"
                   placeholder="Address"
