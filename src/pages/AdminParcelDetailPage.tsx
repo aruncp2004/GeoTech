@@ -177,7 +177,6 @@ export default function AdminParcelDetailPage() {
     { label: "Total weight", value: `${sample.weight_kg} kg` },
     { label: "Collection address", value: sample.pickup_address || "—" },
     { label: "Date of sending", value: sample.pickup_date || "—" },
-    { label: "Collection time", value: sample.pickup_time || "—" },
     { label: "Courier", value: sample.courier_name || "—" },
     {
       label: "Courier tracking number",

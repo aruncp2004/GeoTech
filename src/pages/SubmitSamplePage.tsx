@@ -198,7 +198,7 @@ export default function SubmitSamplePage() {
         sample_description: description,
         num_parcels: parseInt(form.num_parcels),
         weight_kg: parseFloat(form.weight_kg) || 0,
-        pickup_address: `${form.site_location} — ${user.address}`,
+        pickup_address: form.site_location,
         pickup_date: form.pickup_date,
         pickup_time: form.pickup_time,
         courier_name: form.courier_name || "Not assigned",
