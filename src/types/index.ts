@@ -55,6 +55,7 @@ export interface Sample {
   status: SampleStatus;
   condition?: SampleCondition;
   notes?: string;
+  remarks?: string
   received_at?: string;
   created_at: string;
 }
