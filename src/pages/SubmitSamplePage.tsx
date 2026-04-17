@@ -36,12 +36,11 @@ export default function SubmitSamplePage() {
   const [uploadedFileUrl, setUploadedFileUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const [rows, setRows] = useState<DescRow[]>([
-    { id: 1, value: '' }
-  ]);
+  const [rows, setRows] = useState<DescRow[]>([{ id: 1, value: '' }]);
 
   const [form, setForm] = useState({
     sample_type: "" as SampleType | "",
+    custom_sample_type: "",
     test_required: "",
     project_name: "",
     site_location: "",
@@ -85,7 +84,7 @@ export default function SubmitSamplePage() {
     if (!form.site_location) newErrors.site_location = "Site location is required";
     if (!form.num_parcels || parseInt(form.num_parcels) < 1)
       newErrors.num_parcels = "At least 1 parcel";
-    if (!form.pickup_date) newErrors.pickup_date = "Dispatch date is required";
+    if (!form.pickup_date) newErrors.pickup_date = "Date of sending is required";
     const hasData = rows.some(r => r.value.trim());
     if (!hasData) newErrors.rows = "Please fill at least one sample detail";
     setErrors(newErrors);
@@ -143,13 +142,10 @@ export default function SubmitSamplePage() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Max 20MB — accept all file types
     if (file.size > 20 * 1024 * 1024) {
       toast.error("File size must be less than 20MB");
       return;
     }
-
     setUploadedFile(file);
     setUploading(true);
     try {
@@ -188,10 +184,14 @@ export default function SubmitSamplePage() {
       const description = buildDescription() +
         (uploadedFileUrl ? `\nATTACHMENT: ${uploadedFileUrl}` : '');
 
+      const finalSampleType = form.sample_type === 'other' && form.custom_sample_type
+        ? form.custom_sample_type
+        : form.sample_type || 'other'
+
       await createSample.mutateAsync({
         sample_id: id,
         customer_id: user.id,
-        sample_type: (form.sample_type || "other") as SampleType,
+        sample_type: finalSampleType as SampleType,
         test_required: form.test_required || "Not specified",
         project_name: form.project_name,
         site_location: form.site_location,
@@ -223,6 +223,7 @@ export default function SubmitSamplePage() {
     setRows([{ id: 1, value: '' }]);
     setForm({
       sample_type: "",
+      custom_sample_type: "",
       test_required: "",
       project_name: "",
       site_location: "",
@@ -303,11 +304,12 @@ export default function SubmitSamplePage() {
             <h2 className="font-bold text-primary">Sample information</h2>
             <div className="grid sm:grid-cols-2 gap-4">
 
+              {/* Sample type */}
               <div>
                 <Label>Sample type (optional)</Label>
                 <select
                   value={form.sample_type}
-                  onChange={(e) => setForm((f) => ({ ...f, sample_type: e.target.value as SampleType }))}
+                  onChange={(e) => setForm((f) => ({ ...f, sample_type: e.target.value as SampleType, custom_sample_type: '' }))}
                   className="mt-1 w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Select type</option>
@@ -318,19 +320,30 @@ export default function SubmitSamplePage() {
                   <option value="aggregate">Aggregate</option>
                   <option value="other">Other</option>
                 </select>
+                {form.sample_type === 'other' && (
+                  <Input
+                    placeholder="Type sample type e.g. Bitumen, Brick..."
+                    value={form.custom_sample_type}
+                    onChange={(e) => setForm((f) => ({ ...f, custom_sample_type: e.target.value }))}
+                    className="mt-2"
+                  />
+                )}
               </div>
 
+              {/* Test required */}
               <div>
                 <Label htmlFor="test">Test required <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Input id="test" placeholder="e.g. SPT, Atterberg Limits, CBR" value={form.test_required} onChange={(e) => setForm((f) => ({ ...f, test_required: e.target.value }))} className="mt-1" />
               </div>
 
+              {/* Project name */}
               <div>
                 <Label htmlFor="project">Project name <span className="text-destructive">*</span></Label>
                 <Input id="project" placeholder="e.g. NH-44 Highway Project" value={form.project_name} onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))} className="mt-1" />
                 {errors.project_name && <p className="text-destructive text-xs mt-1">{errors.project_name}</p>}
               </div>
 
+              {/* Site location */}
               <div>
                 <Label htmlFor="site">Site location <span className="text-destructive">*</span></Label>
                 <div className="flex gap-2 mt-1">
@@ -347,7 +360,7 @@ export default function SubmitSamplePage() {
             </div>
           </div>
 
-          {/* Sample description — dynamic rows + file upload */}
+          {/* Sample description */}
           <div className="bg-card border rounded-xl p-6 space-y-4">
             <div>
               <h2 className="font-bold text-primary">Sample description <span className="text-destructive">*</span></h2>
@@ -358,22 +371,16 @@ export default function SubmitSamplePage() {
 
             {errors.rows && <p className="text-destructive text-xs">{errors.rows}</p>}
 
-            {/* Dynamic rows */}
             <div className="space-y-2">
               {rows.map((row, index) => (
                 <div key={row.id} className="flex items-center gap-2">
-                  {/* Row number */}
                   <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center flex-shrink-0">
                     {index + 1}
                   </div>
-                  {/* Input */}
                   <Input
                     value={row.value}
                     onChange={(e) => updateRow(row.id, e.target.value)}
-                    placeholder={
-                      index === 0 ? "e.g. BH No: BH-01" :
-                      "Add more details..."
-                    }
+                    placeholder={index === 0 ? "e.g. BH No: BH-01" : "Add more details..."}
                     className="flex-1 h-9"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -382,24 +389,16 @@ export default function SubmitSamplePage() {
                       }
                     }}
                   />
-                  {/* Delete */}
-                  <button
-                    type="button"
-                    onClick={() => removeRow(row.id)}
-                    className="p-1.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
-                  >
+                  <button type="button" onClick={() => removeRow(row.id)}
+                    className="p-1.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Add row button */}
-            <button
-              type="button"
-              onClick={addRow}
-              className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
-            >
+            <button type="button" onClick={addRow}
+              className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors">
               <Plus className="h-4 w-4" />
               Add another row
             </button>
@@ -414,22 +413,13 @@ export default function SubmitSamplePage() {
               <p className="text-xs text-muted-foreground mb-2">
                 Upload any supporting document — PDF, image, Excel, Word etc. (max 20MB)
               </p>
-
               {!uploadedFile ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
-                >
+                <div onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
                   <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
                   <p className="text-sm font-medium text-primary">Click to upload</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Any file type — max 20MB</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
+                  <input ref={fileInputRef} type="file" accept="*" onChange={handleFileSelect} className="hidden" />
                 </div>
               ) : (
                 <div className="border rounded-xl p-3 bg-muted/30">
@@ -470,12 +460,13 @@ export default function SubmitSamplePage() {
               </div>
 
               <div>
-                <Label htmlFor="weight">Total weight IN Kg(optional)</Label>
+                <Label htmlFor="weight">Total weight in kg (optional)</Label>
                 <Input id="weight" type="number" step="0.1" min="0" placeholder="0.0" value={form.weight_kg} onChange={(e) => setForm((f) => ({ ...f, weight_kg: e.target.value }))} className="mt-1" />
               </div>
 
               <div>
-                <Label htmlFor="dispatch">Date of sending <span className="text-destructive">*</span></Label>                <Input id="dispatch" type="date" value={form.pickup_date} min={new Date().toISOString().split("T")[0]} onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))} className="mt-1" />
+                <Label htmlFor="dispatch">Date of sending <span className="text-destructive">*</span></Label>
+                <Input id="dispatch" type="date" value={form.pickup_date} min={new Date().toISOString().split("T")[0]} onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))} className="mt-1" />
                 {errors.pickup_date && <p className="text-destructive text-xs mt-1">{errors.pickup_date}</p>}
               </div>
 
@@ -486,7 +477,7 @@ export default function SubmitSamplePage() {
               </div>
 
               <div>
-                <Label htmlFor="tracking">Courier tracking number/ AWB number </Label>
+                <Label htmlFor="tracking">Courier tracking number (optional)</Label>
                 <Input id="tracking" placeholder="Enter after handing over to courier" value={form.awb_number} onChange={(e) => setForm((f) => ({ ...f, awb_number: e.target.value }))} className="mt-1" />
               </div>
 
@@ -501,12 +492,7 @@ export default function SubmitSamplePage() {
             <span className="text-destructive">*</span> Required fields
           </p>
 
-          <Button
-            type="submit"
-            variant="secondary"
-            className="w-full font-bold h-12 text-base"
-            disabled={loading || uploading}
-          >
+          <Button type="submit" variant="secondary" className="w-full font-bold h-12 text-base" disabled={loading || uploading}>
             {loading ? "Generating…" : "Generate Sample ID & Submit →"}
           </Button>
         </form>
