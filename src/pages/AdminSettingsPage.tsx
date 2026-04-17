@@ -83,9 +83,10 @@ export default function AdminSettingsPage() {
     days: 30,
   });
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
+useEffect(() => {
+  fetchStats();
+  fetchLabSettings();
+}, []);
 
   const fetchStats = async () => {
     await supabase
@@ -93,6 +94,23 @@ export default function AdminSettingsPage() {
       .select("*", { count: "exact", head: true })
       .eq("status", "received");
   };
+  const fetchLabSettings = async () => {
+  const { data } = await supabase
+    .from('lab_settings')
+    .select('*')
+    .eq('id', 'default')
+    .maybeSingle()
+  if (data) {
+    setLab({
+      name: data.name || 'Velciti Consulting Engineers Pvt. Ltd.',
+      address: data.address || 'Velachery, Chennai — 600 042',
+      phone: data.phone || '+91 44-XXXX-XXXX',
+      email: data.email || 'support@velciti.com',
+      nabl: data.nabl || 'NABL Accredited',
+      website: data.website || 'https://velciti.com',
+    })
+  }
+}
 
   const handleProfileSave = async () => {
     setSaving(true);
@@ -139,9 +157,29 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleLabSave = () => {
-    toast.success("Lab details saved");
-  };
+  const handleLabSave = async () => {
+  setSaving(true);
+  try {
+    const { error } = await supabase
+      .from('lab_settings')
+      .upsert({
+        id: 'default',
+        name: lab.name,
+        address: lab.address,
+        phone: lab.phone,
+        email: lab.email,
+        nabl: lab.nabl,
+        website: lab.website,
+        updated_at: new Date().toISOString(),
+      })
+    if (error) throw error
+    toast.success("Lab details saved successfully")
+  } catch {
+    toast.error("Failed to save lab details")
+  } finally {
+    setSaving(false)
+  }
+}
 
   const handleNotificationSave = () => {
     toast.success("Notification preferences saved");
