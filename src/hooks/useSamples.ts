@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/authStore";
-import type { Sample, SampleStatus, SampleCondition,ParcelDetail } from "@/types";
+import type { Sample, SampleStatus, SampleCondition } from "@/types";
 
 export function useSamples() {
   const user = useAuthStore((s) => s.user);
@@ -33,11 +33,11 @@ export function useSamples() {
   });
 
   const fetchSampleById = async (id: string) => {
-  const { data, error } = await supabase
-    .from("samples")
-    .select("*, profiles(full_name, company)")
-    .eq("id", id)
-    .maybeSingle()
+    const { data, error } = await supabase
+      .from("samples")
+      .select("*, profiles(full_name, company)")
+      .eq("id", id)
+      .maybeSingle();
 
     if (error) {
       console.error("fetchSampleById error:", error);
@@ -47,24 +47,27 @@ export function useSamples() {
   };
 
   const createSample = useMutation({
-  mutationFn: async (
-    newSample: Omit<Sample, "id" | "created_at" | "customer_name" | "customer_company">,
-  ) => {
-    const { data, error } = await supabase
-      .from("samples")
-      .insert(newSample)
-      .select()
-      .single();
-    if (error) {
-      console.error("createSample error:", error);
-      throw error;
-    }
-    return data;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["samples"] });
-  },
-});
+    mutationFn: async (
+      newSample: Omit<
+        Sample,
+        "id" | "created_at" | "customer_name" | "customer_company"
+      >,
+    ) => {
+      const { data, error } = await supabase
+        .from("samples")
+        .insert(newSample)
+        .select()
+        .single();
+      if (error) {
+        console.error("createSample error:", error);
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["samples"] });
+    },
+  });
 
   const updateSample = useMutation({
     mutationFn: async ({
@@ -79,6 +82,7 @@ export function useSamples() {
         awb_number: string;
         courier_name: string;
         received_at: string;
+        pickup_date: string;
       }>;
     }) => {
       const { data, error } = await supabase

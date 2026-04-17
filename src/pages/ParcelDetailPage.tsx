@@ -27,12 +27,19 @@ function UpdateCourierForm({
 }) {
   const [courier, setCourier] = useState(currentCourier || '')
   const [awb, setAwb] = useState(currentAwb || '')
+  const [dispatchDate, setDispatchDate] = useState(
+    new Date().toISOString().split('T')[0]
+  )
   const [saving, setSaving] = useState(false)
   const { updateSample } = useSamples()
 
   const handleSave = async () => {
     if (!courier) {
       toast.error('Please enter a courier name')
+      return
+    }
+    if (!dispatchDate) {
+      toast.error('Please enter the date you handed the parcel')
       return
     }
     setSaving(true)
@@ -42,6 +49,7 @@ function UpdateCourierForm({
         updates: {
           courier_name: courier,
           awb_number: awb,
+          pickup_date: dispatchDate,
           status: 'picked_up',
         },
       })
@@ -58,14 +66,41 @@ function UpdateCourierForm({
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
           <Label>Courier name</Label>
-          <Input placeholder="e.g. Blue Dart, DTDC..." value={courier} onChange={(e) => setCourier(e.target.value)} className="mt-1" />
+          <Input
+            placeholder="e.g. Blue Dart, DTDC..."
+            value={courier}
+            onChange={(e) => setCourier(e.target.value)}
+            className="mt-1"
+          />
         </div>
         <div>
           <Label>Courier tracking number</Label>
-          <Input placeholder="Enter tracking number" value={awb} onChange={(e) => setAwb(e.target.value)} className="mt-1" />
+          <Input
+            placeholder="e.g. 76202430"
+            value={awb}
+            onChange={(e) => setAwb(e.target.value)}
+            className="mt-1"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Label>Date you handed parcel to courier</Label>
+          <Input
+            type="date"
+            value={dispatchDate}
+            onChange={(e) => setDispatchDate(e.target.value)}
+            className="mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Enter the actual date you gave the parcel to the courier office
+          </p>
         </div>
       </div>
-      <Button variant="secondary" className="font-bold" onClick={handleSave} disabled={saving}>
+      <Button
+        variant="secondary"
+        className="font-bold"
+        onClick={handleSave}
+        disabled={saving}
+      >
         {saving ? 'Saving…' : 'Save & Update Status →'}
       </Button>
     </div>

@@ -176,7 +176,7 @@ export default function AdminParcelDetailPage() {
     { label: "No. of parcels", value: String(sample.num_parcels) },
     { label: "Total weight", value: `${sample.weight_kg} kg` },
     { label: "Collection address", value: sample.pickup_address || "—" },
-    { label: "Date of sending", value: sample.pickup_date || "—" },
+    { label: "Date of sending", value: sample.pickup_date ? new Date(sample.pickup_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
     { label: "Courier", value: sample.courier_name || "—" },
     {
       label: "Courier tracking number",
