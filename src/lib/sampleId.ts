@@ -1,51 +1,43 @@
 import { supabase } from '@/lib/supabase'
 
+const FALLBACK_PREFIX = 'VCE-GEO'
+const MAX_RETRIES = 3
+
+function generateFallbackId(): string {
+  const timestamp = Date.now().toString().slice(-6)
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+  return `${FALLBACK_PREFIX}-F${timestamp}${random}`
+}
+
 export async function generateSampleId(): Promise<string> {
-  try {
-    // Get ALL VCE-GEO sample IDs
-    const { data } = await supabase
-      .from('samples')
-      .select('sample_id')
-      .like('sample_id', 'VCE-GEO-%')
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const { data, error } = await supabase.rpc('generate_next_sample_id')
 
-    // Find highest number used so far
-    let maxNum = 0
-    if (data && data.length > 0) {
-      for (const row of data) {
-        const match = (row.sample_id as string).match(/VCE-GEO-(\d+)/)
-        if (match) {
-          const num = parseInt(match[1])
-          if (num > maxNum) maxNum = num
-        }
+      if (error) {
+        console.error(`[generateSampleId] Attempt ${attempt} failed:`, error)
+        continue
       }
-    } else {
-      // No VCE-GEO samples yet — get total count as base
-      const { count } = await supabase
-        .from('samples')
-        .select('*', { count: 'exact', head: true })
-      maxNum = count || 0
+
+      if (!data || typeof data !== 'string') {
+        console.error(`[generateSampleId] Invalid response on attempt ${attempt}`)
+        continue
+      }
+
+      if (!/^VCE-GEO-\d{4,}$/.test(data)) {
+        console.error(`[generateSampleId] Unexpected ID format on attempt ${attempt}:`, data)
+        continue
+      }
+
+      console.log(`[generateSampleId] Generated ID: ${data} (attempt ${attempt})`)
+      return data
+
+    } catch (err) {
+      console.error(`[generateSampleId] Unexpected error on attempt ${attempt}:`, err)
     }
-
-    // Find next unused ID
-    let nextNum = maxNum + 1
-    for (let attempts = 0; attempts < 20; attempts++) {
-      const candidateId = `VCE-GEO-${String(nextNum).padStart(4, '0')}`
-
-      // Check if this ID already exists
-      const { data: existing } = await supabase
-        .from('samples')
-        .select('sample_id')
-        .eq('sample_id', candidateId)
-        .maybeSingle()
-
-      if (!existing) return candidateId
-      nextNum++
-    }
-
-    // Guaranteed unique fallback
-    return `VCE-GEO-${Date.now().toString().slice(-6)}`
-
-  } catch {
-    return `VCE-GEO-${Date.now().toString().slice(-6)}`
   }
+
+  const fallback = generateFallbackId()
+  console.warn(`[generateSampleId] All retries failed. Using fallback: ${fallback}`)
+  return fallback
 }
