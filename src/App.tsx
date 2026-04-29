@@ -1,18 +1,19 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { Toaster } from "sonner"
-import ProtectedRoute from "@/components/ProtectedRoute"
-import LoginPage from "@/pages/LoginPage"
-import CustomerDashboard from "@/pages/CustomerDashboard"
-import SubmitSamplePage from "@/pages/SubmitSamplePage"
-import ParcelDetailPage from "@/pages/ParcelDetailPage"
-import AdminDashboard from "@/pages/AdminDashboard"
-import AdminParcelDetailPage from "@/pages/AdminParcelDetailPage"
-import AdminCustomerListPage from "@/pages/AdminCustomerListPage"
-import AdminSettingsPage from "@/pages/AdminSettingsPage"
-import SuperAdminPage from "@/pages/SuperAdminPage"
-import NotFound from "@/pages/NotFound"
-import ResetPasswordPage from "@/pages/ResetPasswordPage"
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "sonner";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import LoginPage from "@/pages/LoginPage";
+import CustomerDashboard from "@/pages/CustomerDashboard";
+import SubmitSamplePage from "@/pages/SubmitSamplePage";
+import ParcelDetailPage from "@/pages/ParcelDetailPage";
+import AdminDashboard from "@/pages/AdminDashboard";
+import AdminParcelDetailPage from "@/pages/AdminParcelDetailPage";
+import AdminCustomerListPage from "@/pages/AdminCustomerListPage";
+import AdminSettingsPage from "@/pages/AdminSettingsPage";
+import SuperAdminPage from "@/pages/SuperAdminPage";
+import NotFound from "@/pages/NotFound";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import AdminActivityLogPage from "@/pages/AdminActivityLogPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,12 +22,14 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 5,
     },
   },
-})
+});
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
@@ -122,6 +125,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/activity"
+            element={
+              <ProtectedRoute requiredRole={["admin", "super_admin"]}>
+                <AdminActivityLogPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Super Admin routes */}
           <Route
@@ -138,5 +149,5 @@ export default function App() {
         <Toaster richColors position="top-right" />
       </BrowserRouter>
     </QueryClientProvider>
-  )
+  );
 }

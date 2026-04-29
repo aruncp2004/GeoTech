@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/authStore";
+import { logActivity } from "@/lib/activityLog";
 import type { Sample, SampleStatus, SampleCondition } from "@/types";
 
 export function useSamples() {
@@ -48,10 +49,7 @@ export function useSamples() {
 
   const createSample = useMutation({
     mutationFn: async (
-      newSample: Omit<
-        Sample,
-        "id" | "created_at" | "customer_name" | "customer_company"
-      >,
+      newSample: Omit<Sample, "id" | "created_at" | "customer_name" | "customer_company">
     ) => {
       const { data, error } = await supabase
         .from("samples")
@@ -64,8 +62,20 @@ export function useSamples() {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["samples"] });
+
+      if (user) {
+        logActivity({
+          actor_id: user.id,
+          actor_name: user.full_name || "Unknown",
+          actor_role: user.role,
+          action: "created sample",
+          sample_id: data.sample_id,
+          details: `Sample ${data.sample_id} submitted for project: ${data.project_name}`,
+          page: "submit-sample",
+        });
+      }
     },
   });
 
@@ -73,6 +83,7 @@ export function useSamples() {
     mutationFn: async ({
       id,
       updates,
+      previousSample,
     }: {
       id: string;
       updates: Partial<{
@@ -87,16 +98,63 @@ export function useSamples() {
         at_courier_at: string;
         in_transit_at: string;
       }>;
+      previousSample?: Sample;
     }) => {
       const { error } = await supabase
         .from("samples")
         .update(updates)
         .eq("id", id);
       if (error) throw error;
-      return { id, ...updates };
+      return { id, updates, previousSample };
     },
-    onSuccess: () => {
+    onSuccess: ({ updates, previousSample }) => {
       queryClient.invalidateQueries({ queryKey: ["samples"] });
+
+      if (!user) return;
+
+      // ✅ Log status change
+      if (updates.status && previousSample) {
+        logActivity({
+          actor_id: user.id,
+          actor_name: user.full_name || "Unknown",
+          actor_role: user.role,
+          action: "updated sample status",
+          sample_id: previousSample.sample_id,
+          old_value: previousSample.status,
+          new_value: updates.status,
+          details: `Status changed from "${previousSample.status}" → "${updates.status}"`,
+          page: "dashboard",
+        });
+      }
+
+      // ✅ Log courier update
+      if (updates.courier_name || updates.awb_number) {
+        logActivity({
+          actor_id: user.id,
+          actor_name: user.full_name || "Unknown",
+          actor_role: user.role,
+          action: "updated courier details",
+          sample_id: previousSample?.sample_id,
+          old_value: previousSample?.courier_name || "",
+          new_value: updates.courier_name || previousSample?.courier_name || "",
+          details: `Courier: ${updates.courier_name || "-"}, AWB: ${updates.awb_number || "-"}`,
+          page: "dashboard",
+        });
+      }
+
+      // ✅ Log notes update
+      if (updates.notes) {
+        logActivity({
+          actor_id: user.id,
+          actor_name: user.full_name || "Unknown",
+          actor_role: user.role,
+          action: "updated sample notes",
+          sample_id: previousSample?.sample_id,
+          old_value: previousSample?.notes || "(empty)",
+          new_value: updates.notes,
+          page: "dashboard",
+        });
+      }
     },
   });
 

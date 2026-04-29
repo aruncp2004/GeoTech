@@ -92,6 +92,8 @@ export function initAuth(): void {
       if (session?.user) {
         await fetchAndLogin(session.user.id)
       } else {
+        // ← Clear bad stored session
+        localStorage.clear()
         useAuthStore.getState().logout()
       }
     })
@@ -99,6 +101,8 @@ export function initAuth(): void {
       clearTimeout(timeout)
       if (!settled) {
         settle()
+        // ← Clear corrupt session data
+        localStorage.clear()
         useAuthStore.getState().logout()
       }
     })
@@ -109,6 +113,20 @@ export function initAuth(): void {
 function listenForAuthChanges(): void {
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'INITIAL_SESSION') return
+
+    if (event === 'TOKEN_REFRESHED' && !session) {
+      useAuthStore.getState().logout()
+      localStorage.clear()
+      window.location.href = '/login'
+      return
+    }
+
+    if (event === 'SIGNED_OUT') {
+      useAuthStore.getState().logout()
+      localStorage.clear()
+      return
+    }
+
     if (session?.user) {
       fetchAndLogin(session.user.id)
     } else {

@@ -89,7 +89,7 @@ export default function AdminParcelDetailPage() {
   }, [id, fetchSampleById]);
 
   const handleUpdate = async () => {
-  if (!id) return;
+  if (!id || !sample) return;  // ← add !sample check
   setSaving(true);
   try {
     await updateSample.mutateAsync({
@@ -102,8 +102,8 @@ export default function AdminParcelDetailPage() {
         ...(status === "received" ? { received_at: new Date().toISOString() } : {}),
         ...(status === "at_courier" ? { at_courier_at: new Date().toISOString() } : {}),
       },
+      previousSample: sample,  // ← add this
     });
-    // Refresh sample to update timeline and status badge
     const updated = await fetchSampleById(id);
     setSample(updated as SampleWithProfile);
     setStatus(updated.status);
@@ -116,7 +116,7 @@ export default function AdminParcelDetailPage() {
 };
 
   const handleMarkReceived = async () => {
-  if (!id) return;
+  if (!id || !sample) return;  // ← add !sample check
   setSaving(true);
   try {
     await updateSample.mutateAsync({
@@ -125,8 +125,8 @@ export default function AdminParcelDetailPage() {
         status: "received",
         received_at: new Date().toISOString(),
       },
+      previousSample: sample,  // ← add this
     });
-    // Refresh sample
     const updated = await fetchSampleById(id);
     setSample(updated as SampleWithProfile);
     setStatus("received");

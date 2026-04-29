@@ -98,11 +98,13 @@ function UpdateCourierForm({
   sampleId,
   currentAwb,
   currentCourier,
+  previousSample,  // ← add this
   onSuccess,
 }: {
   sampleId: string;
   currentAwb?: string;
   currentCourier?: string;
+  previousSample?: Sample;  // ← add this
   onSuccess?: () => void;
 }) {
   const [courier, setCourier] = useState(currentCourier || "");
@@ -133,6 +135,7 @@ function UpdateCourierForm({
           dispatched_at: new Date().toISOString(),
           status: "dispatched",
         },
+        previousSample,
       });
       toast.success("Courier details updated — parcel marked as Dispatched");
       onSuccess?.();
@@ -717,6 +720,7 @@ export default function ParcelDetailPage() {
               sampleId={sample.id}
               currentAwb={sample.awb_number}
               currentCourier={sample.courier_name}
+              previousSample={sample}
               onSuccess={async () => {
                 const updated = await fetchSampleById(sample.id);
                 setSample(updated);
