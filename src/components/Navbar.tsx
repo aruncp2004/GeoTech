@@ -45,7 +45,7 @@ export default function Navbar() {
           </div>
           <div>
             <div className="text-lg font-bold leading-none">
-              Geo<span className="text-secondary">Tech</span> Labs
+              Geo<span className="text-secondary">Tech</span> Parcels
             </div>
             <div className="mt-0.5 text-xs leading-none text-primary-foreground/50">
               by Velciti
