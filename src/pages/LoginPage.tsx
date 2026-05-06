@@ -156,7 +156,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-black text-primary">Welcome back</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Login to your GeoTech Labs account
+            Login to your GeoTech Parcels account
           </p>
         </div>
 

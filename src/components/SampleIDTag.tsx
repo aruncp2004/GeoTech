@@ -15,7 +15,7 @@ export default function SampleIDTag({ sample }: SampleIDTagProps) {
       <div className="flex items-center justify-center gap-2 mb-3">
         <Package className="h-5 w-5 text-primary" />
         <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-          GeoTech Labs — Velciti
+          GeoTech Parcels — Velciti
         </span>
       </div>
 

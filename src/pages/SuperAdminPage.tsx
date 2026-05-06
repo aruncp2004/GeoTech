@@ -1250,7 +1250,7 @@ export default function SuperAdminPage() {
                     label: "Organization",
                     value: "Velciti Consulting Engineers Pvt. Ltd.",
                   },
-                  { label: "Portal", value: "GeoTech Labs" },
+                  { label: "Portal", value: "GeoTech Parcels" },
                   { label: "Domain", value: "geotech.velciti.com" },
                   { label: "Database", value: "Supabase PostgreSQL" },
                   { label: "Hosting", value: "Vercel" },

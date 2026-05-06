@@ -110,7 +110,7 @@ export default function Footer() {
             © {new Date().getFullYear()} {lab.name}. All rights reserved.
           </p>
           <p className="text-xs text-primary-foreground/30">
-            GeoTech Labs ·
+            GeoTech Parcels ·
             <a href="#" className="hover:text-secondary transition-colors ml-1">Privacy policy</a> ·
             <a href="#" className="hover:text-secondary transition-colors ml-1">Terms of use</a>
           </p>
