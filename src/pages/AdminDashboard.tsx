@@ -193,10 +193,10 @@ export default function AdminDashboard() {
                       Supervisor
                     </th>
                     <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Sample type
+                      Project Name 
                     </th>
                     <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Test required
+                      Site location
                     </th>
                     <th className="text-left p-4 font-bold text-primary hidden lg:table-cell">
                       Courier
@@ -245,10 +245,10 @@ export default function AdminDashboard() {
                         {s.profiles?.full_name || s.customer_name || "—"}
                       </td>
                       <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">
-                        {s.sample_type}
+                        {s.project_name}
                       </td>
                       <td className="p-4 hidden md:table-cell text-muted-foreground">
-                        {s.test_required}
+                        {s.site_location}
                       </td>
                       <td className="p-4 hidden lg:table-cell">
                         {s.courier_name}
