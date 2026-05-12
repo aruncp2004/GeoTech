@@ -30,6 +30,7 @@ export default function AdminDashboard() {
       (s.test_required?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
       (s.courier_name?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
       (s.awb_number?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
+      (s.client_name?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
       (s.project_name?.toLowerCase() ?? "").includes(search.toLowerCase()) ||
       (s.sample_type?.toLowerCase() ?? "").includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || s.status === statusFilter;
@@ -193,7 +194,7 @@ export default function AdminDashboard() {
                       Supervisor
                     </th>
                     <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
-                      Project Name 
+                      Client Name
                     </th>
                     <th className="text-left p-4 font-bold text-primary hidden md:table-cell">
                       Site location
@@ -244,8 +245,8 @@ export default function AdminDashboard() {
                       <td className="p-4 hidden sm:table-cell font-medium">
                         {s.profiles?.full_name || s.customer_name || "—"}
                       </td>
-                      <td className="p-4 hidden md:table-cell capitalize text-muted-foreground">
-                        {s.project_name}
+                      <td className="p-4 hidden md:table-cell text-muted-foreground">
+                        {s.client_name || "—"}
                       </td>
                       <td className="p-4 hidden md:table-cell text-muted-foreground">
                         {s.site_location}

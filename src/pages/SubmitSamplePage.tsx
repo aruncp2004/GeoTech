@@ -42,6 +42,7 @@ export default function SubmitSamplePage() {
     sample_type: "" as SampleType | "",
     custom_sample_type: "",
     test_required: "",
+    client_name: "",
     project_name: "",
     site_location: "",
     num_parcels: "1",
@@ -80,6 +81,7 @@ export default function SubmitSamplePage() {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
+    if (!form.client_name) newErrors.client_name = "Client name is required";
     if (!form.project_name) newErrors.project_name = "Project name is required";
     if (!form.site_location) newErrors.site_location = "Site location is required";
     if (!form.num_parcels || parseInt(form.num_parcels) < 1)
@@ -193,6 +195,7 @@ export default function SubmitSamplePage() {
         customer_id: user.id,
         sample_type: finalSampleType as SampleType,
         test_required: form.test_required || "Not specified",
+        client_name: form.client_name,
         project_name: form.project_name,
         site_location: form.site_location,
         sample_description: description,
@@ -225,6 +228,7 @@ export default function SubmitSamplePage() {
       sample_type: "",
       custom_sample_type: "",
       test_required: "",
+      client_name: "",
       project_name: "",
       site_location: "",
       num_parcels: "1",
@@ -334,6 +338,13 @@ export default function SubmitSamplePage() {
               <div>
                 <Label htmlFor="test">Test required <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Input id="test" placeholder="e.g. SPT, Atterberg Limits, CBR" value={form.test_required} onChange={(e) => setForm((f) => ({ ...f, test_required: e.target.value }))} className="mt-1" />
+              </div>
+
+              {/* Client name */}
+              <div>
+                <Label htmlFor="client">Client name <span className="text-destructive">*</span></Label>
+                <Input id="client" placeholder="e.g. NHAI, PWD, Private Company..." value={form.client_name} onChange={(e) => setForm((f) => ({ ...f, client_name: e.target.value }))} className="mt-1" />
+                {errors.client_name && <p className="text-destructive text-xs mt-1">{errors.client_name}</p>}
               </div>
 
               {/* Project name */}

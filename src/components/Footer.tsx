@@ -15,7 +15,7 @@ interface LabSettings {
 const DEFAULT: LabSettings = {
   name: 'Velciti Consulting Engineers Pvt. Ltd.',
   address: 'Velachery, Chennai — 600 042',
-  phone: '+91 44-XXXX-XXXX',
+  phone: '+91 93840 33283',
   email: 'support@velciti.com',
   nabl: 'NABL Accredited',
   website: 'https://velciti.com',

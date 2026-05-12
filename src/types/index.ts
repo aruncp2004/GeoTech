@@ -33,6 +33,7 @@ export interface Sample {
   }
   sample_type: SampleType
   test_required: string
+  client_name?: string
   project_name?: string
   site_location?: string
   sample_description?: string

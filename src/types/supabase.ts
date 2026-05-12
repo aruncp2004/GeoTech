@@ -55,6 +55,7 @@ export interface Database {
           customer_id: string
           sample_type: string
           test_required: string
+          client_name: string | null
           num_parcels: number
           weight_kg: number
           pickup_address: string
@@ -74,6 +75,7 @@ export interface Database {
           customer_id: string
           sample_type: string
           test_required: string
+          client_name?: string | null
           num_parcels: number
           weight_kg: number
           pickup_address: string
@@ -93,6 +95,7 @@ export interface Database {
           notes?: string | null
           awb_number?: string | null
           received_at?: string | null
+          client_name?: string | null
         }
       }
     }

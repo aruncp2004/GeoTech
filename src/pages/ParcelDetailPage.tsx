@@ -225,6 +225,7 @@ export default function ParcelDetailPage() {
   const [editForm, setEditForm] = useState({
     sample_type: "",
     test_required: "",
+    client_name: "",
     project_name: "",
     site_location: "",
     num_parcels: "",
@@ -243,6 +244,7 @@ export default function ParcelDetailPage() {
           setEditForm({
             sample_type: data.sample_type || "",
             test_required: data.test_required || "",
+            client_name: data.client_name || "",
             project_name: data.project_name || "",
             site_location: data.site_location || "",
             num_parcels: String(data.num_parcels || 1),
@@ -272,6 +274,7 @@ export default function ParcelDetailPage() {
       {
         sample_type: sample.sample_type || "",
         test_required: sample.test_required || "",
+        client_name: sample.client_name || "",
         project_name: sample.project_name || "",
         site_location: sample.site_location || "",
         num_parcels: String(sample.num_parcels),
@@ -281,6 +284,7 @@ export default function ParcelDetailPage() {
       {
         sample_type: editForm.sample_type,
         test_required: editForm.test_required,
+        client_name: editForm.client_name,
         project_name: editForm.project_name,
         site_location: editForm.site_location,
         num_parcels: editForm.num_parcels,
@@ -290,6 +294,7 @@ export default function ParcelDetailPage() {
       {
         sample_type: "Sample type",
         test_required: "Test required",
+        client_name: "Client name",
         project_name: "Project name",
         site_location: "Site location",
         num_parcels: "No. of parcels",
@@ -309,6 +314,7 @@ export default function ParcelDetailPage() {
         .update({
           sample_type: editForm.sample_type as SampleType,
           test_required: editForm.test_required,
+          client_name: editForm.client_name,
           project_name: editForm.project_name,
           site_location: editForm.site_location,
           num_parcels: parseInt(editForm.num_parcels) || 1,
@@ -458,6 +464,7 @@ export default function ParcelDetailPage() {
           {!editing && (
             <div className="text-sm divide-y">
               {[
+                { label: "Client name", value: sample.client_name || "—" },
                 { label: "Sample type", value: sample.sample_type || "—" },
                 { label: "Test required", value: sample.test_required || "—" },
                 { label: "Project name", value: sample.project_name || "—" },
@@ -620,6 +627,20 @@ export default function ParcelDetailPage() {
                       }))
                     }
                     placeholder="e.g. SPT, CBR..."
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Client name</Label>
+                  <Input
+                    value={editForm.client_name}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        client_name: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. NHAI, PWD..."
                     className="mt-1"
                   />
                 </div>

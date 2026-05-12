@@ -175,6 +175,7 @@ export default function AdminParcelDetailPage() {
 
   const detailRows: DetailRow[] = [
     { label: "Supervisor", value: supervisorName },
+    { label: "Client name", value: sample.client_name || "—" },
     { label: "Sample type", value: sample.sample_type || "—" },
     { label: "Project name", value: sample.project_name || "—" },
     { label: "Site location", value: sample.site_location || "—" },
