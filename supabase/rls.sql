@@ -3,7 +3,7 @@ create or replace function public.is_admin()
 returns boolean as $$
   select exists (
     select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
+    where id = auth.uid() and role in ('admin', 'super_admin')
   );
 $$ language sql security definer stable;
 

@@ -38,6 +38,9 @@ export default function SubmitSamplePage() {
 
   const [rows, setRows] = useState<DescRow[]>([{ id: 1, value: '' }]);
 
+  const todayISO = new Date().toISOString().split("T")[0];
+  const [dateMode, setDateMode] = useState<"today" | "manual">("today");
+
   const [form, setForm] = useState({
     sample_type: "" as SampleType | "",
     custom_sample_type: "",
@@ -48,7 +51,7 @@ export default function SubmitSamplePage() {
     num_parcels: "1",
     courier_name: "",
     awb_number: "",
-    pickup_date: "",
+    pickup_date: todayISO,
     weight_kg: "",
     remarks: "",
     pickup_time: "09:00",
@@ -93,6 +96,30 @@ export default function SubmitSamplePage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const resolveAddress = async (lat: string, lng: string) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      if (data?.address) {
+        const a = data.address;
+        const parts = [
+          a.road || a.pedestrian || a.footway,
+          a.suburb || a.neighbourhood || a.village,
+          a.city || a.town || a.county,
+          a.state,
+          a.postcode,
+        ].filter(Boolean);
+        return parts.length > 0 ? parts.join(", ") : `${lat}, ${lng}`;
+      }
+    } catch {
+      // fall through to coords
+    }
+    return `${lat}, ${lng}`;
+  };
+
   const handleGPS = () => {
     if (!navigator.geolocation) {
       toast.error("GPS not supported on this device");
@@ -100,44 +127,36 @@ export default function SubmitSamplePage() {
     }
     setGpsLoading(true);
     toast.info("Getting your location…");
+
+    const applyPosition = async (pos: GeolocationPosition) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      const address = await resolveAddress(lat, lng);
+      setForm((f) => ({ ...f, site_location: address }));
+      toast.success("Location detected — edit if needed");
+      setGpsLoading(false);
+    };
+
+    // Try high-accuracy (GPS chip) first, fall back to network location on timeout
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lng = pos.coords.longitude.toFixed(6);
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-            { headers: { "Accept-Language": "en" } }
-          );
-          const data = await res.json();
-          if (data && data.address) {
-            const a = data.address;
-            const parts = [
-              a.road || a.pedestrian || a.footway,
-              a.suburb || a.neighbourhood || a.village,
-              a.city || a.town || a.county,
-              a.state,
-              a.postcode,
-            ].filter(Boolean);
-            const shortAddress = parts.length > 0 ? parts.join(", ") : `${lat}, ${lng}`;
-            setForm((f) => ({ ...f, site_location: shortAddress }));
-            toast.success("Location detected — edit if needed");
-          } else {
-            setForm((f) => ({ ...f, site_location: `${lat}, ${lng}` }));
-          }
-        } catch {
-          setForm((f) => ({ ...f, site_location: `${lat}, ${lng}` }));
-        } finally {
-          setGpsLoading(false);
-        }
-      },
+      applyPosition,
       (err) => {
-        setGpsLoading(false);
-        if (err.code === 1) toast.error("Location permission denied.");
-        else if (err.code === 2) toast.error("Location unavailable. Enter manually.");
-        else toast.error("Location timed out. Enter manually.");
+        if (err.code === 1) {
+          setGpsLoading(false);
+          toast.error("Location permission denied.");
+          return;
+        }
+        // Timeout or unavailable — retry with low accuracy (WiFi/cell, much faster)
+        navigator.geolocation.getCurrentPosition(
+          applyPosition,
+          () => {
+            setGpsLoading(false);
+            toast.error("Could not detect location. Please enter manually.");
+          },
+          { timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 }
+        );
       },
-      { timeout: 15000, enableHighAccuracy: true }
+      { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 }
     );
   };
 
@@ -206,6 +225,7 @@ export default function SubmitSamplePage() {
         pickup_time: form.pickup_time,
         courier_name: form.courier_name || "Not assigned",
         awb_number: form.awb_number || undefined,
+        remarks: form.remarks || undefined,
         status: "booked",
       });
       setGeneratedId(id);
@@ -224,6 +244,7 @@ export default function SubmitSamplePage() {
     setUploadedFile(null);
     setUploadedFileUrl("");
     setRows([{ id: 1, value: '' }]);
+    setDateMode("today");
     setForm({
       sample_type: "",
       custom_sample_type: "",
@@ -234,7 +255,7 @@ export default function SubmitSamplePage() {
       num_parcels: "1",
       courier_name: "",
       awb_number: "",
-      pickup_date: "",
+      pickup_date: todayISO,
       weight_kg: "",
       remarks: "",
       pickup_time: "09:00",
@@ -476,8 +497,51 @@ export default function SubmitSamplePage() {
               </div>
 
               <div>
-                <Label htmlFor="dispatch">Date of sending <span className="text-destructive">*</span></Label>
-                <Input id="dispatch" type="date" value={form.pickup_date} min={new Date().toISOString().split("T")[0]} onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))} className="mt-1" />
+                <Label>Date of sending <span className="text-destructive">*</span></Label>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateMode("today");
+                      setForm((f) => ({ ...f, pickup_date: todayISO }));
+                    }}
+                    className={`flex-1 h-10 rounded-md border text-sm font-semibold transition-colors ${
+                      dateMode === "today"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-input hover:border-primary"
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDateMode("manual");
+                      setForm((f) => ({ ...f, pickup_date: "" }));
+                    }}
+                    className={`flex-1 h-10 rounded-md border text-sm font-semibold transition-colors ${
+                      dateMode === "manual"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-input hover:border-primary"
+                    }`}
+                  >
+                    Pick date
+                  </button>
+                </div>
+                {dateMode === "today" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                  </p>
+                )}
+                {dateMode === "manual" && (
+                  <Input
+                    id="dispatch"
+                    type="date"
+                    value={form.pickup_date}
+                    onChange={(e) => setForm((f) => ({ ...f, pickup_date: e.target.value }))}
+                    className="mt-2"
+                  />
+                )}
                 {errors.pickup_date && <p className="text-destructive text-xs mt-1">{errors.pickup_date}</p>}
               </div>
 
